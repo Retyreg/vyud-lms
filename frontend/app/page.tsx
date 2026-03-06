@@ -50,22 +50,16 @@ export default function Home() {
           throw new Error("Failed to fetch graph data");
         }
         const data: GraphResponse = await res.json();
+        console.log("Fetched data:", data);
 
         // Преобразование узлов API в формат ReactFlow
-        // Простой алгоритм расстановки: группируем по уровням (level)
-        // position.x = уровень * 250
-        // position.y = индекс_в_группе * 100
-        const levelCounts: Record<number, number> = {};
-        
-        const flowNodes: Node[] = data.nodes.map((node) => {
-          const lvl = node.level || 1;
-          const count = levelCounts[lvl] || 0;
-          levelCounts[lvl] = count + 1;
-
+        // position.x = index * 200 (чтобы не накладывались по горизонтали)
+        // position.y = level * 100 (уровни по вертикали)
+        const flowNodes: Node[] = data.nodes.map((node, index) => {
           return {
             id: node.id.toString(),
             data: { label: node.label },
-            position: { x: (lvl - 1) * 250, y: count * 100 },
+            position: { x: index * 200, y: (node.level || 1) * 100 },
             sourcePosition: "right" as any,
             targetPosition: "left" as any,
           };
