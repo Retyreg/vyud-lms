@@ -73,6 +73,7 @@ export default function Home() {
           animated: true,
         }));
 
+        console.log("Nodes:", flowNodes);
         setNodes(flowNodes);
         setEdges(flowEdges);
       } catch (error) {
