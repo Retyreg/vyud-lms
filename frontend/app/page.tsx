@@ -1,105 +1,45 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import ReactFlow, {
-  Background,
-  Controls,
-  Node,
-  Edge,
-  useNodesState,
-  useEdgesState,
-  Connection,
-  addEdge,
-} from "reactflow";
-import "reactflow/dist/style.css";
+import React, { useEffect, useState } from 'react';
+import { ReactFlow, Background, Controls } from '@xyflow/react';
+import '@xyflow/react/dist/style.css'; // Тот самый недостающий импорт стилей!
 
-interface ApiNode {
-  id: number;
-  label: string;
-  level: number;
-}
-
-interface ApiEdge {
-  source: number;
-  target: number;
-}
-
-interface GraphResponse {
-  nodes: ApiNode[];
-  edges: ApiEdge[];
-}
-
-const initialNodes: Node[] = [];
-const initialEdges: Edge[] = [];
-
-export default function Home() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [loading, setLoading] = useState(true);
-
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+export default function Page() {
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
 
   useEffect(() => {
-    const fetchGraph = async () => {
-      try {
-        const res = await fetch("http://127.0.0.1:8000/api/knowledge-graph");
-        if (!res.ok) {
-          throw new Error("Failed to fetch graph data");
-        }
-        const data: GraphResponse = await res.json();
-        console.log("Fetched data:", data);
-
-        // Преобразование узлов API в формат ReactFlow
-        // position.x = index * 200 (чтобы не накладывались по горизонтали)
-        // position.y = level * 100 (уровни по вертикали)
-        const flowNodes: Node[] = data.nodes.map((node, index) => {
-          return {
-            id: node.id.toString(),
-            data: { label: node.label },
-            position: { x: index * 200, y: (node.level || 1) * 100 },
-            sourcePosition: "right" as any,
-            targetPosition: "left" as any,
-          };
-        });
-
-        // Преобразование ребер API в формат ReactFlow
-        const flowEdges: Edge[] = data.edges.map((edge) => ({
+    // Стучимся в наш FastAPI бэкенд
+    fetch('http://127.0.0.1:8000/api/knowledge-graph')
+      .then(res => res.json())
+      .then(data => {
+        console.log("Данные с бэкенда:", data);
+        
+        // Преобразуем узлы для React Flow (добавляем координаты X и Y)
+        const formattedNodes = data.nodes.map((node: any, index: number) => ({
+          id: node.id.toString(),
+          position: { x: 250 * index + 100, y: node.level * 150 },
+          data: { label: node.label },
+          style: { border: '1px solid #222', padding: 10, borderRadius: 8, background: '#fff' }
+        }));
+        
+        // Преобразуем связи
+        const formattedEdges = data.edges.map((edge: any) => ({
           id: `e${edge.source}-${edge.target}`,
           source: edge.source.toString(),
           target: edge.target.toString(),
-          animated: true,
+          animated: true, // Делаем связи анимированными для красоты
         }));
 
-        console.log("Nodes:", flowNodes);
-        setNodes(flowNodes);
-        setEdges(flowEdges);
-      } catch (error) {
-        console.error("Error fetching knowledge graph:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGraph();
-  }, [setNodes, setEdges]);
-
-  if (loading) {
-    return <div className="flex h-screen w-full items-center justify-center">Загрузка графа...</div>;
-  }
+        setNodes(formattedNodes);
+        setEdges(formattedEdges);
+      })
+      .catch(err => console.error("Ошибка загрузки:", err));
+  }, []);
 
   return (
-    <div className="h-screen w-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        fitView
-      >
+    <div style={{ width: '100vw', height: '100vh', background: '#f8f9fa' }}>
+      <ReactFlow nodes={nodes} edges={edges} fitView>
         <Background />
         <Controls />
       </ReactFlow>
