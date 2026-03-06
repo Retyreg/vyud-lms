@@ -1,1 +1,22 @@
 .aider*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
