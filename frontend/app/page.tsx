@@ -35,6 +35,7 @@ const initialEdges: Edge[] = [];
 export default function Home() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [loading, setLoading] = useState(true);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -82,11 +83,17 @@ export default function Home() {
         setEdges(flowEdges);
       } catch (error) {
         console.error("Error fetching knowledge graph:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchGraph();
   }, [setNodes, setEdges]);
+
+  if (loading) {
+    return <div className="flex h-screen w-full items-center justify-center">Загрузка графа...</div>;
+  }
 
   return (
     <div className="h-screen w-full">
