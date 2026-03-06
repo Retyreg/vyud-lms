@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
 
 app = FastAPI(title="VYUD LMS API", version="0.1.0")
 
@@ -23,3 +25,38 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+# --- Pydantic модели для ответа API (можно вынести в schemas/) ---
+class NodeSchema(BaseModel):
+    id: int
+    label: str
+    level: int
+
+class EdgeSchema(BaseModel):
+    source: int
+    target: int
+
+class GraphResponse(BaseModel):
+    nodes: List[NodeSchema]
+    edges: List[EdgeSchema]
+
+@app.get("/api/knowledge-graph", response_model=GraphResponse)
+def get_knowledge_graph():
+    """
+    Возвращает структуру дерева навыков для визуализации.
+    Пока возвращаем моковые данные (Mock Data).
+    """
+    mock_nodes = [
+        NodeSchema(id=1, label="Python Basics", level=1),
+        NodeSchema(id=2, label="Variables", level=1),
+        NodeSchema(id=3, label="Functions", level=2),
+        NodeSchema(id=4, label="FastAPI", level=3),
+    ]
+    
+    mock_edges = [
+        EdgeSchema(source=1, target=2), # Basics -> Variables
+        EdgeSchema(source=2, target=3), # Variables -> Functions
+        EdgeSchema(source=3, target=4), # Functions -> FastAPI
+    ]
+    
+    return GraphResponse(nodes=mock_nodes, edges=mock_edges)
