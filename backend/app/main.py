@@ -1,15 +1,26 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 
-from app.db.base import Base, engine
+from app.db.base import Base, engine, SessionLocal
 import app.models 
+from app.models.course import Course
+from app.models.knowledge import KnowledgeNode, KnowledgeEdge
 
 # Создаем таблицы при старте приложения
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="VYUD LMS API", version="0.1.0")
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Настройка CORS для общения с Next.js
 origins = [
@@ -55,30 +66,22 @@ class CourseSchema(BaseModel):
         from_attributes = True
 
 @app.get("/api/courses", response_model=List[CourseSchema])
-def get_courses():
+def get_courses(db: Session = Depends(get_db)):
     """
-    Возвращает список доступных курсов (пока пустой или моковый).
+    Возвращает список доступных курсов из БД.
     """
-    # В будущем здесь будет запрос к БД: db.query(Course).all()
-    return []
+    courses = db.query(Course).all()
+    return courses
 
 @app.get("/api/knowledge-graph", response_model=GraphResponse)
-def get_knowledge_graph():
+def get_knowledge_graph(db: Session = Depends(get_db)):
     """
-    Возвращает структуру дерева навыков для визуализации.
-    Пока возвращаем моковые данные (Mock Data).
+    Возвращает структуру дерева навыков для визуализации из БД.
     """
-    mock_nodes = [
-        NodeSchema(id=1, label="Python Basics", level=1),
-        NodeSchema(id=2, label="Variables", level=1),
-        NodeSchema(id=3, label="Functions", level=2),
-        NodeSchema(id=4, label="FastAPI", level=3),
-    ]
+    nodes = db.query(KnowledgeNode).all()
+    edges = db.query(KnowledgeEdge).all()
     
-    mock_edges = [
-        EdgeSchema(source=1, target=2), # Basics -> Variables
-        EdgeSchema(source=2, target=3), # Variables -> Functions
-        EdgeSchema(source=3, target=4), # Functions -> FastAPI
-    ]
-    
-    return GraphResponse(nodes=mock_nodes, edges=mock_edges)
+    return GraphResponse(
+        nodes=[NodeSchema(id=n.id, label=n.label, level=n.level) for n in nodes],
+        edges=[EdgeSchema(source=e.source_id, target=e.target_id) for e in edges]
+    )
