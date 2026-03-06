@@ -17,17 +17,17 @@ export default function Page() {
         
         // Преобразуем узлы для React Flow (добавляем координаты X и Y)
         const formattedNodes = data.nodes.map((node: any, index: number) => ({
-          id: node.id.toString(),
-          position: { x: 250 * index + 100, y: node.level * 150 },
+          id: String(node.id),
+          position: { x: index * 200 + 50, y: (node.level || 1) * 100 },
           data: { label: node.label },
           style: { border: '1px solid #222', padding: 10, borderRadius: 8, background: '#fff' }
         }));
         
         // Преобразуем связи
         const formattedEdges = data.edges.map((edge: any) => ({
-          id: `e${edge.source}-${edge.target}`,
-          source: edge.source.toString(),
-          target: edge.target.toString(),
+          id: String('e' + edge.source + '-' + edge.target),
+          source: String(edge.source),
+          target: String(edge.target),
           animated: true, // Делаем связи анимированными для красоты
         }));
 
