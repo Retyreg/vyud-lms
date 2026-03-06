@@ -10,9 +10,6 @@ class KnowledgeNode(Base):
     description = Column(Text, nullable=True)
     level = Column(Integer, default=1) # Уровень сложности (1 - база, 5 - эксперт)
     
-    # Связь: какие уроки прокачивают этот навык
-    # (В будущем можно сделать Many-to-Many, пока упростим)
-    
 class KnowledgeEdge(Base):
     """Ребра графа. Показывают зависимость: чтобы изучить Target, нужно знать Source."""
     __tablename__ = "knowledge_edges"
