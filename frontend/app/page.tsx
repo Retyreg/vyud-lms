@@ -13,6 +13,29 @@ const fallbackEdges = [{ id: 'e-test', source: 'test-1', target: 'test-2', anima
 export default function Page() {
   const [nodes, setNodes] = useState(fallbackNodes);
   const [edges, setEdges] = useState(fallbackEdges);
+  
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const onNodeClick = async (event: any, node: any) => {
+    const topic = node.data.label;
+    setSelectedTopic(topic);
+    setExplanation(null);
+    setIsAiLoading(true);
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/explain/${encodeURIComponent(topic)}`);
+      if (!res.ok) throw new Error("Ошибка API");
+      const data = await res.json();
+      setExplanation(data.explanation);
+    } catch (err) {
+      console.error(err);
+      setExplanation("Не удалось получить объяснение. Попробуйте позже.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/knowledge-graph')
@@ -49,11 +72,49 @@ export default function Page() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#f8f9fa' }}>
-      <ReactFlow nodes={nodes} edges={edges} fitView>
+    <div style={{ width: '100vw', height: '100vh', background: '#f8f9fa', position: 'relative' }}>
+      <ReactFlow 
+        nodes={nodes} 
+        edges={edges} 
+        fitView 
+        onNodeClick={onNodeClick}
+      >
         <Background />
         <Controls />
       </ReactFlow>
+
+      {/* Всплывающее окно с ИИ-уроком */}
+      {selectedTopic && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          width: '300px',
+          padding: '20px',
+          background: 'white',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          borderRadius: '8px',
+          zIndex: 10,
+          border: '1px solid #e5e7eb',
+          color: '#333'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <h3 style={{ fontWeight: 'bold', margin: 0 }}>{selectedTopic}</h3>
+            <button 
+              onClick={() => setSelectedTopic(null)}
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '16px' }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          {isAiLoading ? (
+            <p style={{ color: '#6b7280', fontStyle: 'italic' }}>🤖 Генерирую урок...</p>
+          ) : (
+            <p style={{ lineHeight: '1.5', fontSize: '14px' }}>{explanation}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
