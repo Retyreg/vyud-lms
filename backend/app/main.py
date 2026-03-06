@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 from app.db.base import Base, engine
 import app.models 
@@ -45,6 +45,22 @@ class EdgeSchema(BaseModel):
 class GraphResponse(BaseModel):
     nodes: List[NodeSchema]
     edges: List[EdgeSchema]
+
+class CourseSchema(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+@app.get("/api/courses", response_model=List[CourseSchema])
+def get_courses():
+    """
+    Возвращает список доступных курсов (пока пустой или моковый).
+    """
+    # В будущем здесь будет запрос к БД: db.query(Course).all()
+    return []
 
 @app.get("/api/knowledge-graph", response_model=GraphResponse)
 def get_knowledge_graph():
