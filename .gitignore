@@ -16,6 +16,10 @@ env/
 # OS specific
 .DS_Store
 
+# Database
+*.db
+*.sqlite3
+
 # Distribution / Packaging
 dist/
 build/
