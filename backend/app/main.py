@@ -3,6 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
+from app.db.base import Base, engine
+import app.models 
+
+# Создаем таблицы при старте приложения
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="VYUD LMS API", version="0.1.0")
 
 # Настройка CORS для общения с Next.js
