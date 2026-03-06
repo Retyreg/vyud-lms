@@ -20,3 +20,6 @@ class KnowledgeEdge(Base):
     
     # Вес связи (насколько сильно зависит)
     weight = Column(Float, default=1.0)
+
+    source_node = relationship("KnowledgeNode", foreign_keys=[source_id])
+    target_node = relationship("KnowledgeNode", foreign_keys=[target_id])
