@@ -107,9 +107,9 @@ def complete_node(node_id: int, db: Session = Depends(get_db)):
     return {"status": "ok", "message": f"Node {node.label} marked as completed"}
 
 @app.post("/api/nodes/{node_id}/complete")
-def complete_node_alt(node_id: int, db: Session = Depends(get_db)):
+def complete_node_rest(node_id: int, db: Session = Depends(get_db)):
     """
-    Отмечает узел как изученный (альтернативный путь).
+    Отмечает узел как изученный (REST-style).
     """
     node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
     if not node:
