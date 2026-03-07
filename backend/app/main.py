@@ -119,6 +119,26 @@ def complete_node_rest(node_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok", "message": f"Node {node.label} marked as completed", "is_completed": True}
 
+@app.post("/api/nodes/{node_id}/toggle-complete")
+def toggle_complete_node(node_id: int, db: Session = Depends(get_db)):
+    """
+    Переключает статус изучения узла (изучено/не изучено).
+    """
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    # Инвертируем значение
+    node.is_completed = not node.is_completed
+    db.commit()
+    
+    status_msg = "completed" if node.is_completed else "uncompleted"
+    return {
+        "status": "ok", 
+        "message": f"Node {node.label} marked as {status_msg}", 
+        "is_completed": node.is_completed
+    }
+
 class ExplanationResponse(BaseModel):
     explanation: str
 
