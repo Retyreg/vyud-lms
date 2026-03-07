@@ -105,7 +105,7 @@ async def explain_topic(topic: str):
             return ExplanationResponse(explanation=f"Демо-режим (нет API ключа): {topic} — это важная концепция в программировании. Изучите её подробнее в уроках.")
 
         response = completion(
-            model="gemini/gemini-3-pro-preview", 
+            model="gemini/gemini-1.5-flash", 
             messages=[
                 {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
                 {"role": "user", "content": f"Объясни тему: {topic}"}
