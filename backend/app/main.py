@@ -170,6 +170,7 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
             model=model, 
             messages=messages,
             # Ключи берутся из os.environ: GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY
+            api_version="v1" if "gemini" in model else None
         )
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
@@ -188,7 +189,8 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
                 response = completion(
                     model=fallback_model, 
                     messages=messages,
-                    api_key=os.getenv("GEMINI_API_KEY")
+                    api_key=os.getenv("GEMINI_API_KEY"),
+                    api_version="v1"
                 )
                 content = response.choices[0].message.content
                 return ExplanationResponse(explanation=f"⚠️ {model} недоступна. Ответ от Gemini Flash:\n\n{content}")
@@ -229,7 +231,11 @@ async def get_quiz(topic: str, model: str = "gemini/gemini-3-flash"):
 
         try:
             # Попытка 1
-            response = completion(model=model, messages=messages)
+            response = completion(
+                model=model, 
+                messages=messages, 
+                api_version="v1" if "gemini" in model else None
+            )
             content = response.choices[0].message.content
         except Exception as e:
             print(f"Quiz Error ({model}): {e}")
@@ -240,7 +246,8 @@ async def get_quiz(topic: str, model: str = "gemini/gemini-3-flash"):
                 response = completion(
                     model="gemini/gemini-3-flash", 
                     messages=messages,
-                    api_key=os.getenv("GEMINI_API_KEY")
+                    api_key=os.getenv("GEMINI_API_KEY"),
+                    api_version="v1"
                 )
                 content = response.choices[0].message.content
             else:
