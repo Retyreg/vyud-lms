@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from app.db.base import SessionLocal, engine, Base
 from app.models.course import Course, Lesson
 from app.models.knowledge import KnowledgeNode, KnowledgeEdge

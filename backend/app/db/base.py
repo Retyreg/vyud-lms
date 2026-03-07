@@ -1,16 +1,17 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
+from dotenv import load_dotenv
 
-# Используем SQLite для быстрой разработки, PostgreSQL через ENV
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vyud_lms.db")
+load_dotenv()
 
-# check_same_thread нужен только для SQLite
-connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+# Используем PostgreSQL (Supabase)
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args=connect_args
-)
+if not SQLALCHEMY_DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set")
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
