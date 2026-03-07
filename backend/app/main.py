@@ -166,11 +166,14 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
     try:
         # Попытка 1: Запрошенная модель
         # LiteLLM поддерживает huggingface/..., groq/..., anthropic/... автоматически
+        # Принудительно ставим v1 для Gemini, так как v1beta может быть нестабильна для новых моделей
+        api_ver = "v1" if "gemini" in model else None
+        
         response = completion(
             model=model, 
             messages=messages,
-            # Ключи берутся из os.environ: GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY
-            api_version="v1" if "gemini" in model else None
+            # Ключи берутся из os.environ
+            api_version=api_ver
         )
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
