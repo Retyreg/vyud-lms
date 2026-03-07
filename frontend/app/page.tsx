@@ -19,6 +19,8 @@ export default function Page() {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const onNodeClick = async (event: any, node: any) => {
+    if (!node.data?.label) return;
+
     const topic = node.data.label;
     setSelectedTopic(topic);
     setExplanation(null);
@@ -26,9 +28,12 @@ export default function Page() {
 
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/explain/${encodeURIComponent(topic)}`);
-      if (!res.ok) throw new Error("Ошибка API");
-      const data = await res.json();
-      setExplanation(data.explanation);
+      if (!res.ok) {
+        setExplanation("Ошибка получения данных от API");
+      } else {
+        const data = await res.json();
+        setExplanation(data.explanation);
+      }
     } catch (err) {
       console.error(err);
       setExplanation("Не удалось получить объяснение. Попробуйте позже.");
