@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -97,25 +98,23 @@ async def explain_topic(topic: str):
     Генерирует короткое объяснение темы с помощью ИИ.
     """
     try:
-        # Проверяем наличие ключа API (в реальном проекте это должно быть в .env)
-        # Для локального запуска можно задать: export GEMINI_API_KEY="ваш_ключ"
+        # Проверяем наличие ключа API
+        if not os.getenv("GEMINI_API_KEY"):
+            return ExplanationResponse(explanation="Ключ API не найден в системе")
+
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-             # Возвращаем заглушку, если ключа нет, чтобы фронтенд не ломался при тесте
-            return ExplanationResponse(explanation=f"Демо-режим (нет API ключа): {topic} — это важная концепция в программировании. Изучите её подробнее в уроках.")
 
         response = completion(
-            model="gemini/gemini-1.5-flash-latest", 
+            model="gemini/gemini-2.0-flash", 
             messages=[
                 {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
                 {"role": "user", "content": f"Объясни тему: {topic}"}
             ],
-            api_key=api_key,
-            api_version="v1beta"
+            api_key=api_key
         )
         # litellm возвращает структуру, похожую на OpenAI
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
     except Exception as e:
         print(f"LLM Error: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {str(e)}")
+        return JSONResponse(status_code=500, content={"explanation": f"Ошибка ИИ: {str(e)}"})
