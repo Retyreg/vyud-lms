@@ -55,6 +55,8 @@ class NodeSchema(BaseModel):
     label: str
     level: int
     is_completed: bool
+    is_available: bool
+    prerequisites: List[int]
 
 class EdgeSchema(BaseModel):
     source: int
@@ -88,8 +90,26 @@ def get_knowledge_graph(db: Session = Depends(get_db)):
     nodes = db.query(KnowledgeNode).all()
     edges = db.query(KnowledgeEdge).all()
     
+    # Создаем словарь статусов для быстрой проверки
+    completed_ids = {n.id for n in nodes if n.is_completed}
+    
+    node_schemas = []
+    for n in nodes:
+        # Узел доступен, если у него нет пререквизитов ИЛИ все пререквизиты выполнены
+        prereqs = n.prerequisites or []
+        is_available = all(pid in completed_ids for pid in prereqs)
+        
+        node_schemas.append(NodeSchema(
+            id=n.id, 
+            label=n.label, 
+            level=n.level, 
+            is_completed=n.is_completed,
+            is_available=is_available,
+            prerequisites=prereqs
+        ))
+
     return GraphResponse(
-        nodes=[NodeSchema(id=n.id, label=n.label, level=n.level, is_completed=n.is_completed) for n in nodes],
+        nodes=node_schemas,
         edges=[EdgeSchema(source=e.source_id, target=e.target_id) for e in edges]
     )
 

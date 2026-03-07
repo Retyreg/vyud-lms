@@ -30,6 +30,12 @@ export default function Page() {
 
   const onNodeClick = async (event: any, node: any) => {
     if (!node.data?.label) return;
+    
+    // Проверка доступности узла
+    if (node.data?.isAvailable === false) {
+      alert("Сначала изучи предыдущие темы!");
+      return;
+    }
 
     const topic = node.data.label;
     setSelectedTopic(topic);
@@ -134,14 +140,28 @@ export default function Page() {
             const safeX = index * 250 + 100;
 
             const isCompleted = node.is_completed;
-            const bg = isCompleted ? '#4ADE80' : '#fff';
-            const border = isCompleted ? '2px solid #166534' : '2px solid blue';
+            const isAvailable = node.is_available;
+            
+            let bg = '#fff';
+            let border = '2px solid blue';
+            let opacity = 1;
+            let color = '#000';
+
+            if (isCompleted) {
+              bg = '#4ADE80';
+              border = '2px solid #166534';
+            } else if (!isAvailable) {
+              bg = '#e5e7eb'; // серый
+              border = '2px dashed #9ca3af'; // пунктир
+              opacity = 0.7;
+              color = '#6b7280';
+            }
 
             return {
               id: String(node.id),
               position: { x: safeX, y: safeY },
-              data: { label: node.label || "Без названия", isCompleted },
-              style: { background: bg, border: border, padding: '15px', borderRadius: '8px', color: '#000' }
+              data: { label: node.label || "Без названия", isCompleted, isAvailable },
+              style: { background: bg, border: border, padding: '15px', borderRadius: '8px', color: color, opacity: opacity }
             };
           });
 
