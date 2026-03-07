@@ -118,7 +118,7 @@ class QuizResponse(BaseModel):
     questions: List[QuizQuestion]
 
 @app.get("/api/explain/{topic}", response_model=ExplanationResponse)
-async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
+async def explain_topic(topic: str, model: str = "gemini/gemini-2.0-flash"):
     """
     Генерирует короткое объяснение темы с помощью ИИ.
     """
@@ -148,7 +148,7 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
         if "gemini" not in model:
             print("Ошибка сторонней модели. Попытка переключения на Gemini Flash...")
             try:
-                fallback_model = "gemini/gemini-1.5-flash"
+                fallback_model = "gemini/gemini-2.0-flash"
                 if not os.getenv("GEMINI_API_KEY"):
                      raise Exception("Нет ключа для Gemini Fallback")
                 
@@ -167,7 +167,7 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
 import json
 
 @app.get("/api/quiz/{topic}", response_model=QuizResponse)
-async def get_quiz(topic: str, model: str = "gemini/gemini-1.5-flash"):
+async def get_quiz(topic: str, model: str = "gemini/gemini-2.0-flash"):
     """
     Генерирует 3 вопроса с вариантами ответов по теме.
     """
@@ -205,7 +205,7 @@ async def get_quiz(topic: str, model: str = "gemini/gemini-1.5-flash"):
             if "gemini" not in model:
                 print("Quiz Fallback -> Gemini Flash")
                 response = completion(
-                    model="gemini/gemini-1.5-flash", 
+                    model="gemini/gemini-2.0-flash", 
                     messages=messages,
                     api_key=os.getenv("GEMINI_API_KEY")
                 )
