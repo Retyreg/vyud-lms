@@ -116,6 +116,5 @@ async def explain_topic(topic: str):
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
     except Exception as e:
-        print(e)
-        print(f"AI Error: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка генерации объяснения")
+        print(f"LLM Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {str(e)}")
