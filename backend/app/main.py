@@ -151,7 +151,7 @@ class QuizResponse(BaseModel):
     questions: List[QuizQuestion]
 
 @app.get("/api/explain/{topic}", response_model=ExplanationResponse)
-async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
+async def explain_topic(topic: str, model: str = "gemini/gemini-2.0-flash"):
     """
     Генерирует короткое объяснение темы с помощью ИИ.
     """
@@ -166,7 +166,7 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
     try:
         # Попытка 1: Запрошенная модель
         # LiteLLM поддерживает huggingface/..., groq/..., anthropic/... автоматически
-        # Принудительно ставим v1 для Gemini, так как v1beta может быть нестабильна для новых моделей
+        # Принудительно ставим v1 для Gemini
         api_ver = "v1" if "gemini" in model else None
         
         response = completion(
@@ -181,31 +181,27 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-3-flash"):
     except Exception as e:
         print(f"LLM Error ({model}): {e}")
         
-        # Fallback логика: если упала не Gemini, пробуем Gemini Flash
-        if "gemini" not in model:
-            print("Ошибка сторонней модели. Попытка переключения на Gemini Flash...")
-            try:
-                fallback_model = "gemini/gemini-3-flash"
-                if not os.getenv("GEMINI_API_KEY"):
-                     raise Exception("Нет ключа для Gemini Fallback")
-                
-                response = completion(
-                    model=fallback_model, 
-                    messages=messages,
-                    api_key=os.getenv("GEMINI_API_KEY"),
-                    api_version="v1"
-                )
-                content = response.choices[0].message.content
-                return ExplanationResponse(explanation=f"⚠️ {model} недоступна. Ответ от Gemini Flash:\n\n{content}")
-            except Exception as e_fallback:
-                print(f"Fallback Error: {e_fallback}")
+        # Fallback логика
+        print("Попытка переключения на запасную модель (Groq Llama)...")
+        try:
+            fallback_model = "groq/llama-3.1-70b-versatile"
+            # LiteLLM возьмет GROQ_API_KEY из env
+            
+            response = completion(
+                model=fallback_model, 
+                messages=messages
+            )
+            content = response.choices[0].message.content
+            return ExplanationResponse(explanation=f"⚠️ Основная модель недоступна. Ответ от Llama 3.1 (Groq):\n\n{content}")
+        except Exception as e_fallback:
+            print(f"Fallback Error: {e_fallback}")
 
         return ExplanationResponse(explanation=f"ИИ временно недоступен ({model}). Ошибка: {str(e)}")
 
 import json
 
 @app.get("/api/quiz/{topic}", response_model=QuizResponse)
-async def get_quiz(topic: str, model: str = "gemini/gemini-3-flash"):
+async def get_quiz(topic: str, model: str = "gemini/gemini-2.0-flash"):
     """
     Генерирует 3 вопроса с вариантами ответов по теме.
     """
@@ -243,18 +239,13 @@ async def get_quiz(topic: str, model: str = "gemini/gemini-3-flash"):
         except Exception as e:
             print(f"Quiz Error ({model}): {e}")
             
-            # Fallback
-            if "gemini" not in model:
-                print("Quiz Fallback -> Gemini Flash")
-                response = completion(
-                    model="gemini/gemini-3-flash", 
-                    messages=messages,
-                    api_key=os.getenv("GEMINI_API_KEY"),
-                    api_version="v1"
-                )
-                content = response.choices[0].message.content
-            else:
-                raise e
+            # Fallback на Groq
+            print("Quiz Fallback -> Groq Llama")
+            response = completion(
+                model="groq/llama-3.1-70b-versatile", 
+                messages=messages
+            )
+            content = response.choices[0].message.content
 
         # Очистка от markdown
         content = content.replace("```json", "").replace("```", "").strip()
