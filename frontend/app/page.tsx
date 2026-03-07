@@ -89,28 +89,33 @@ export default function Page() {
     if (!selectedNodeId) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/nodes/${selectedNodeId}/complete`, {
+      const res = await fetch(`http://127.0.0.1:8000/api/nodes/${selectedNodeId}/toggle-complete`, {
         method: 'POST'
       });
       
       if (res.ok) {
+        const data = await res.json();
+        const isCompleted = data.is_completed;
+
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === selectedNodeId) {
+              const bg = isCompleted ? '#4ADE80' : '#fff';
+              const border = isCompleted ? '2px solid #166534' : '2px solid blue';
+              
               return {
                 ...node,
                 style: { 
                   ...node.style, 
-                  background: '#4ADE80', 
-                  border: '2px solid #166534' 
+                  background: bg, 
+                  border: border
                 },
-                data: { ...node.data, isCompleted: true }
+                data: { ...node.data, isCompleted: isCompleted }
               };
             }
             return node;
           })
         );
-        // alert("Урок пройден! Прогресс сохранен."); // Убрал alert для более плавного UX
         setSelectedTopic(null); // Закрываем модальное окно
       }
     } catch (err) {
@@ -248,7 +253,8 @@ export default function Page() {
                         cursor: 'pointer'
                       }}
                     >
-                      ✅ Я всё понял! (Завершить)
+                      {/* Здесь можно динамически менять текст, но пока оставим универсальный */}
+                      ✅ Переключить статус (Изучено/Нет)
                     </button>
                   </div>
                 </>
