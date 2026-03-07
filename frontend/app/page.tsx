@@ -205,7 +205,6 @@ export default function Page() {
               style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '13px' }}
             >
               <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (По умолчанию)</option>
-              <option value="gemini/gemini-1.5-flash">Gemini 1.5 Flash (Базовая)</option>
               <option value="anthropic/claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Лучший текст)</option>
               <option value="groq/llama-3.1-70b-versatile">Llama 3.1 70B (Groq - Мгновенно)</option>
               <option value="huggingface/Qwen/Qwen2.5-72B-Instruct">Qwen 2.5 72B (Hugging Face)</option>
