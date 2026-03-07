@@ -89,7 +89,7 @@ export default function Page() {
     if (!selectedNodeId) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/complete/${selectedNodeId}`, {
+      const res = await fetch(`http://127.0.0.1:8000/api/nodes/${selectedNodeId}/complete`, {
         method: 'POST'
       });
       
@@ -101,7 +101,7 @@ export default function Page() {
                 ...node,
                 style: { 
                   ...node.style, 
-                  background: '#dcfce7', 
+                  background: '#4ADE80', 
                   border: '2px solid #166534' 
                 },
                 data: { ...node.data, isCompleted: true }
@@ -110,8 +110,8 @@ export default function Page() {
             return node;
           })
         );
-        alert("Урок пройден! Прогресс сохранен.");
-        setSelectedTopic(null); 
+        // alert("Урок пройден! Прогресс сохранен."); // Убрал alert для более плавного UX
+        setSelectedTopic(null); // Закрываем модальное окно
       }
     } catch (err) {
       console.error("Ошибка сохранения прогресса:", err);
@@ -130,7 +130,7 @@ export default function Page() {
             const safeX = index * 250 + 100;
 
             const isCompleted = node.is_completed;
-            const bg = isCompleted ? '#dcfce7' : '#fff';
+            const bg = isCompleted ? '#4ADE80' : '#fff';
             const border = isCompleted ? '2px solid #166534' : '2px solid blue';
 
             return {
