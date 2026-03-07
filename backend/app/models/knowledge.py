@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -9,6 +9,7 @@ class KnowledgeNode(Base):
     label = Column(String, unique=True, index=True, nullable=False) # Название навыка
     description = Column(Text, nullable=True)
     level = Column(Integer, default=1) # Уровень сложности (1 - база, 5 - эксперт)
+    is_completed = Column(Boolean, default=False)
     
 class KnowledgeEdge(Base):
     """Ребра графа. Показывают зависимость: чтобы изучить Target, нужно знать Source."""

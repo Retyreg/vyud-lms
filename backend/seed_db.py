@@ -25,9 +25,9 @@ def seed():
     db.add_all([lesson1, lesson2])
 
     # Граф знаний
-    node1 = KnowledgeNode(label="Python Syntax", level=1)
-    node2 = KnowledgeNode(label="Variables", level=1)
-    node3 = KnowledgeNode(label="Loops", level=1)
+    node1 = KnowledgeNode(label="Python Syntax", level=1, is_completed=False)
+    node2 = KnowledgeNode(label="Variables", level=1, is_completed=False)
+    node3 = KnowledgeNode(label="Loops", level=1, is_completed=False)
     db.add_all([node1, node2, node3])
     db.commit()
 

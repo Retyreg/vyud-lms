@@ -15,6 +15,7 @@ export default function Page() {
   const [edges, setEdges] = useState(fallbackEdges);
   
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -29,6 +30,7 @@ export default function Page() {
 
     const topic = node.data.label;
     setSelectedTopic(topic);
+    setSelectedNodeId(node.id);
     setExplanation(null);
     setIsAiLoading(true);
     
@@ -80,6 +82,39 @@ export default function Page() {
     }));
   };
 
+  const markAsCompleted = async () => {
+    if (!selectedNodeId) return;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/complete/${selectedNodeId}`, {
+        method: 'POST'
+      });
+      
+      if (res.ok) {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.id === selectedNodeId) {
+              return {
+                ...node,
+                style: { 
+                  ...node.style, 
+                  background: '#dcfce7', 
+                  border: '2px solid #166534' 
+                },
+                data: { ...node.data, isCompleted: true }
+              };
+            }
+            return node;
+          })
+        );
+        alert("Урок пройден! Прогресс сохранен.");
+        setSelectedTopic(null); 
+      }
+    } catch (err) {
+      console.error("Ошибка сохранения прогресса:", err);
+    }
+  };
+
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/knowledge-graph')
       .then(res => res.json())
@@ -90,11 +125,16 @@ export default function Page() {
           const formattedNodes = data.nodes.map((node, index) => {
             const safeY = (node.level || 1) * 150;
             const safeX = index * 250 + 100;
+
+            const isCompleted = node.is_completed;
+            const bg = isCompleted ? '#dcfce7' : '#fff';
+            const border = isCompleted ? '2px solid #166534' : '2px solid blue';
+
             return {
               id: String(node.id),
               position: { x: safeX, y: safeY },
-              data: { label: node.label || "Без названия" },
-              style: { background: '#fff', border: '2px solid blue', padding: '15px', borderRadius: '8px', color: '#000' }
+              data: { label: node.label || "Без названия", isCompleted },
+              style: { background: bg, border: border, padding: '15px', borderRadius: '8px', color: '#000' }
             };
           });
 
@@ -158,22 +198,39 @@ export default function Page() {
               {!showQuiz ? (
                 <>
                   <p style={{ lineHeight: '1.5', fontSize: '14px', marginBottom: '15px' }}>{explanation}</p>
-                  <button 
-                    onClick={loadQuiz}
-                    disabled={isQuizLoading}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      opacity: isQuizLoading ? 0.7 : 1
-                    }}
-                  >
-                    {isQuizLoading ? "Генерирую тест..." : "Проверить знания"}
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                    <button 
+                      onClick={loadQuiz}
+                      disabled={isQuizLoading}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        opacity: isQuizLoading ? 0.7 : 1
+                      }}
+                    >
+                      {isQuizLoading ? "Генерирую тест..." : "Проверить знания"}
+                    </button>
+                    
+                    <button 
+                      onClick={markAsCompleted}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✅ Я всё понял! (Завершить)
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div>

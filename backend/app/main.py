@@ -51,6 +51,7 @@ class NodeSchema(BaseModel):
     id: int
     label: str
     level: int
+    is_completed: bool
 
 class EdgeSchema(BaseModel):
     source: int
@@ -85,9 +86,22 @@ def get_knowledge_graph(db: Session = Depends(get_db)):
     edges = db.query(KnowledgeEdge).all()
     
     return GraphResponse(
-        nodes=[NodeSchema(id=n.id, label=n.label, level=n.level) for n in nodes],
+        nodes=[NodeSchema(id=n.id, label=n.label, level=n.level, is_completed=n.is_completed) for n in nodes],
         edges=[EdgeSchema(source=e.source_id, target=e.target_id) for e in edges]
     )
+
+@app.post("/api/complete/{node_id}")
+def complete_node(node_id: int, db: Session = Depends(get_db)):
+    """
+    Отмечает узел как изученный.
+    """
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    node.is_completed = True
+    db.commit()
+    return {"status": "ok", "message": f"Node {node.label} marked as completed"}
 
 class ExplanationResponse(BaseModel):
     explanation: str
