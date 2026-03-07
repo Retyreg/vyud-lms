@@ -85,7 +85,7 @@ export default function Page() {
     }));
   };
 
-  const markAsCompleted = async () => {
+  const handleComplete = async () => {
     if (!selectedNodeId) return;
 
     try {
@@ -100,7 +100,7 @@ export default function Page() {
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === selectedNodeId) {
-              const bg = isCompleted ? '#4ADE80' : '#fff';
+              const bg = isCompleted ? '#4ADE80' : '#fff'; // Ярко-зелёный для изученных
               const border = isCompleted ? '2px solid #166534' : '2px solid blue';
               
               return {
@@ -116,7 +116,7 @@ export default function Page() {
             return node;
           })
         );
-        setSelectedTopic(null); // Закрываем модальное окно
+        // setSelectedTopic(null); // Не закрываем модалку сразу, чтобы видно было изменение статуса
       }
     } catch (err) {
       console.error("Ошибка сохранения прогресса:", err);
@@ -242,7 +242,7 @@ export default function Page() {
                     </button>
                     
                     <button 
-                      onClick={markAsCompleted}
+                      onClick={handleComplete}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -253,8 +253,7 @@ export default function Page() {
                         cursor: 'pointer'
                       }}
                     >
-                      {/* Здесь можно динамически менять текст, но пока оставим универсальный */}
-                      ✅ Переключить статус (Изучено/Нет)
+                      ✅ Я всё понял! (Завершить/Отменить)
                     </button>
                   </div>
                 </>
