@@ -100,7 +100,7 @@ export default function Page() {
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === selectedNodeId) {
-              const bg = isCompleted ? '#4ADE80' : '#fff'; // Ярко-зелёный для изученных
+              const bg = isCompleted ? '#4ADE80' : '#fff';
               const border = isCompleted ? '2px solid #166534' : '2px solid blue';
               
               return {
@@ -116,7 +116,6 @@ export default function Page() {
             return node;
           })
         );
-        // setSelectedTopic(null); // Не закрываем модалку сразу, чтобы видно было изменение статуса
       }
     } catch (err) {
       console.error("Ошибка сохранения прогресса:", err);
