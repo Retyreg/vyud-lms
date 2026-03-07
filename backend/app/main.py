@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+from dotenv import load_dotenv
 from litellm import completion
+
+load_dotenv()
 
 from app.db.base import Base, engine, SessionLocal
 import app.models 
