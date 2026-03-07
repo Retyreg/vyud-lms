@@ -129,10 +129,11 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
 
     try:
         # Попытка 1: Запрошенная модель
+        # LiteLLM поддерживает huggingface/..., groq/..., anthropic/... автоматически
         response = completion(
             model=model, 
             messages=messages,
-            # LiteLLM сам подтянет нужные ключи из os.environ (GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY)
+            # Ключи берутся из os.environ: GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY
         )
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
@@ -142,22 +143,23 @@ async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
         
         # Fallback логика: если упала не Gemini, пробуем Gemini Flash
         if "gemini" not in model:
-            print("Попытка переключения на Gemini Flash...")
+            print("Ошибка сторонней модели. Попытка переключения на Gemini Flash...")
             try:
+                fallback_model = "gemini/gemini-1.5-flash"
                 if not os.getenv("GEMINI_API_KEY"):
                      raise Exception("Нет ключа для Gemini Fallback")
                 
                 response = completion(
-                    model="gemini/gemini-1.5-flash", 
+                    model=fallback_model, 
                     messages=messages,
                     api_key=os.getenv("GEMINI_API_KEY")
                 )
                 content = response.choices[0].message.content
-                return ExplanationResponse(explanation=f"[Ответ от Gemini Flash (Fallback)] {content}")
+                return ExplanationResponse(explanation=f"⚠️ {model} недоступна. Ответ от Gemini Flash:\n\n{content}")
             except Exception as e_fallback:
                 print(f"Fallback Error: {e_fallback}")
 
-        return ExplanationResponse(explanation=f"ИИ временно недоступен ({model}), но тема {topic} очень важна! Попробуйте позже.")
+        return ExplanationResponse(explanation=f"ИИ временно недоступен ({model}). Ошибка: {str(e)}")
 
 import json
 
@@ -190,11 +192,13 @@ async def get_quiz(topic: str, model: str = "gemini/gemini-1.5-flash"):
         print(f"Генерирую тест моделью: {model}")
 
         try:
+            # Попытка 1
             response = completion(model=model, messages=messages)
             content = response.choices[0].message.content
         except Exception as e:
             print(f"Quiz Error ({model}): {e}")
-             # Fallback
+            
+            # Fallback
             if "gemini" not in model:
                 print("Quiz Fallback -> Gemini Flash")
                 response = completion(
