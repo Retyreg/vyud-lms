@@ -115,49 +115,58 @@ class QuizResponse(BaseModel):
     questions: List[QuizQuestion]
 
 @app.get("/api/explain/{topic}", response_model=ExplanationResponse)
-async def explain_topic(topic: str):
+async def explain_topic(topic: str, model: str = "gemini/gemini-1.5-flash"):
     """
     Генерирует короткое объяснение темы с помощью ИИ.
     """
-    try:
-        # Проверяем наличие ключа API
-        if not os.getenv("GEMINI_API_KEY"):
-            return ExplanationResponse(explanation="Ключ API не найден в системе")
+    # Системный промпт
+    messages = [
+        {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
+        {"role": "user", "content": f"Объясни тему: {topic}"}
+    ]
 
+    print(f"Использую модель: {model} для объяснения темы: {topic}")
+
+    try:
+        # Попытка 1: Запрошенная модель
         response = completion(
-            model="gemini/gemini-1.5-flash", 
-            messages=[
-                {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
-                {"role": "user", "content": f"Объясни тему: {topic}"}
-            ],
-            api_key=os.getenv("GEMINI_API_KEY")
+            model=model, 
+            messages=messages,
+            # LiteLLM сам подтянет нужные ключи из os.environ (GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY)
         )
-        # litellm возвращает структуру, похожую на OpenAI
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
+
     except Exception as e:
-        print(f"LLM Error: {e}")
-        # Возвращаем заглушку вместо ошибки, чтобы пользователь не расстраивался
-        return ExplanationResponse(explanation=f"ИИ временно недоступен, но тема {topic} очень важна для вашего развития! Попробуйте позже.")
+        print(f"LLM Error ({model}): {e}")
+        
+        # Fallback логика: если упала не Gemini, пробуем Gemini Flash
+        if "gemini" not in model:
+            print("Попытка переключения на Gemini Flash...")
+            try:
+                if not os.getenv("GEMINI_API_KEY"):
+                     raise Exception("Нет ключа для Gemini Fallback")
+                
+                response = completion(
+                    model="gemini/gemini-1.5-flash", 
+                    messages=messages,
+                    api_key=os.getenv("GEMINI_API_KEY")
+                )
+                content = response.choices[0].message.content
+                return ExplanationResponse(explanation=f"[Ответ от Gemini Flash (Fallback)] {content}")
+            except Exception as e_fallback:
+                print(f"Fallback Error: {e_fallback}")
+
+        return ExplanationResponse(explanation=f"ИИ временно недоступен ({model}), но тема {topic} очень важна! Попробуйте позже.")
 
 import json
 
 @app.get("/api/quiz/{topic}", response_model=QuizResponse)
-async def get_quiz(topic: str):
+async def get_quiz(topic: str, model: str = "gemini/gemini-1.5-flash"):
     """
     Генерирует 3 вопроса с вариантами ответов по теме.
     """
     try:
-        if not os.getenv("GEMINI_API_KEY"):
-            # Возвращаем мок-данные, если нет ключа
-            return QuizResponse(questions=[
-                QuizQuestion(
-                    question=f"Что такое {topic}?", 
-                    options=["Еда", "Концепция программирования", "Вид спорта", "Планета"], 
-                    answer="Концепция программирования"
-                )
-            ])
-
         prompt = f"""
         Сгенерируй тест по теме "{topic}".
         Нужно ровно 3 вопроса.
@@ -172,29 +181,42 @@ async def get_quiz(topic: str):
             }}
         ]
         """
-
-        response = completion(
-            model="gemini/gemini-1.5-flash", 
-            messages=[
-                {"role": "system", "content": "Ты — генератор тестов. Ты отвечаешь только строгим JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            api_key=os.getenv("GEMINI_API_KEY")
-        )
         
-        content = response.choices[0].message.content
-        # Очистка от markdown, если модель все-таки его добавила
+        messages = [
+            {"role": "system", "content": "Ты — генератор тестов. Ты отвечаешь только строгим JSON."},
+            {"role": "user", "content": prompt}
+        ]
+
+        print(f"Генерирую тест моделью: {model}")
+
+        try:
+            response = completion(model=model, messages=messages)
+            content = response.choices[0].message.content
+        except Exception as e:
+            print(f"Quiz Error ({model}): {e}")
+             # Fallback
+            if "gemini" not in model:
+                print("Quiz Fallback -> Gemini Flash")
+                response = completion(
+                    model="gemini/gemini-1.5-flash", 
+                    messages=messages,
+                    api_key=os.getenv("GEMINI_API_KEY")
+                )
+                content = response.choices[0].message.content
+            else:
+                raise e
+
+        # Очистка от markdown
         content = content.replace("```json", "").replace("```", "").strip()
         
         questions_data = json.loads(content)
         return QuizResponse(questions=questions_data)
 
     except Exception as e:
-        print(f"LLM Error (Quiz): {e}")
-        # Возвращаем безопасный фолбек
+        print(f"LLM Error (Quiz Final): {e}")
         return QuizResponse(questions=[
             QuizQuestion(
-                question=f"Не удалось сгенерировать тест по теме {topic}. Попробуйте позже.", 
+                question=f"Не удалось сгенерировать тест ({model}).", 
                 options=["Ок"], 
                 answer="Ок"
             )

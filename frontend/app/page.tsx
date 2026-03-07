@@ -18,6 +18,9 @@ export default function Page() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  // Выбор модели
+  const [selectedModel, setSelectedModel] = useState<string>("gemini/gemini-1.5-flash");
 
   // Состояния для квиза
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
@@ -40,7 +43,7 @@ export default function Page() {
     setUserAnswers({});
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/explain/${encodeURIComponent(topic)}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/explain/${encodeURIComponent(topic)}?model=${selectedModel}`);
       if (!res.ok) {
         setExplanation("Ошибка получения данных от API");
       } else {
@@ -59,7 +62,7 @@ export default function Page() {
     if (!selectedTopic) return;
     setIsQuizLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/quiz/${encodeURIComponent(selectedTopic)}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/quiz/${encodeURIComponent(selectedTopic)}?model=${selectedModel}`);
       if (res.ok) {
         const data = await res.json();
         setQuizQuestions(data.questions || []);
@@ -172,7 +175,10 @@ export default function Page() {
           position: 'absolute',
           top: '20px',
           right: '20px',
-          width: '300px',
+          width: '350px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           padding: '20px',
           background: 'white',
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -189,6 +195,21 @@ export default function Page() {
             >
               ✕
             </button>
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>AI Модель:</label>
+            <select 
+              value={selectedModel} 
+              onChange={(e) => setSelectedModel(e.target.value)}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '13px' }}
+            >
+              <option value="gemini/gemini-1.5-flash">Gemini 1.5 Flash (Быстрая)</option>
+              <option value="gemini/gemini-2.0-flash">Gemini 2.0 Flash (Новая)</option>
+              <option value="anthropic/claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Умная)</option>
+              <option value="groq/llama-3.1-70b-versatile">Llama 3.1 70B (Groq - Мгновенная)</option>
+              <option value="huggingface/Qwen/Qwen2.5-72B-Instruct">Qwen 2.5 72B (HuggingFace)</option>
+            </select>
           </div>
           
           {isAiLoading ? (
