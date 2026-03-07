@@ -105,7 +105,7 @@ async def explain_topic(topic: str):
             return ExplanationResponse(explanation=f"Демо-режим (нет API ключа): {topic} — это важная концепция в программировании. Изучите её подробнее в уроках.")
 
         response = completion(
-            model="gemini/gemini-1.5-pro-002", 
+            model="gemini/gemini-3-pro-preview", 
             messages=[
                 {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
                 {"role": "user", "content": f"Объясни тему: {topic}"}
@@ -116,5 +116,6 @@ async def explain_topic(topic: str):
         content = response.choices[0].message.content
         return ExplanationResponse(explanation=content)
     except Exception as e:
+        print(e)
         print(f"AI Error: {e}")
         raise HTTPException(status_code=500, detail="Ошибка генерации объяснения")
