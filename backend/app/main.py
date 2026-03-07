@@ -106,6 +106,19 @@ def complete_node(node_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok", "message": f"Node {node.label} marked as completed"}
 
+@app.post("/api/nodes/{node_id}/complete")
+def complete_node_alt(node_id: int, db: Session = Depends(get_db)):
+    """
+    Отмечает узел как изученный (альтернативный путь).
+    """
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    node.is_completed = True
+    db.commit()
+    return {"status": "ok", "message": f"Node {node.label} marked as completed", "is_completed": True}
+
 class ExplanationResponse(BaseModel):
     explanation: str
 
