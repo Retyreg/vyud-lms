@@ -18,6 +18,12 @@ export default function Page() {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // Состояния для квиза
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<{[key: number]: string}>({});
+
   const onNodeClick = async (event: any, node: any) => {
     if (!node.data?.label) return;
 
@@ -25,6 +31,11 @@ export default function Page() {
     setSelectedTopic(topic);
     setExplanation(null);
     setIsAiLoading(true);
+    
+    // Сбрасываем состояние квиза при выборе новой темы
+    setShowQuiz(false);
+    setQuizQuestions([]);
+    setUserAnswers({});
 
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/explain/${encodeURIComponent(topic)}`);
@@ -40,6 +51,33 @@ export default function Page() {
     } finally {
       setIsAiLoading(false);
     }
+  };
+
+  const loadQuiz = async () => {
+    if (!selectedTopic) return;
+    setIsQuizLoading(true);
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/quiz/${encodeURIComponent(selectedTopic)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQuizQuestions(data.questions || []);
+        setShowQuiz(true);
+      }
+    } catch (err) {
+      console.error("Ошибка загрузки теста:", err);
+    } finally {
+      setIsQuizLoading(false);
+    }
+  };
+
+  const handleAnswerClick = (qIndex: number, option: string) => {
+    // Если уже ответили на этот вопрос, не даем менять (или можно разрешить, зависит от логики)
+    if (userAnswers[qIndex]) return;
+    
+    setUserAnswers(prev => ({
+      ...prev,
+      [qIndex]: option
+    }));
   };
 
   useEffect(() => {
@@ -116,7 +154,88 @@ export default function Page() {
           {isAiLoading ? (
             <p style={{ color: '#6b7280', fontStyle: 'italic' }}>🤖 Генерирую урок...</p>
           ) : (
-            <p style={{ lineHeight: '1.5', fontSize: '14px' }}>{explanation}</p>
+            <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+              {!showQuiz ? (
+                <>
+                  <p style={{ lineHeight: '1.5', fontSize: '14px', marginBottom: '15px' }}>{explanation}</p>
+                  <button 
+                    onClick={loadQuiz}
+                    disabled={isQuizLoading}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      background: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      opacity: isQuizLoading ? 0.7 : 1
+                    }}
+                  >
+                    {isQuizLoading ? "Генерирую тест..." : "Проверить знания"}
+                  </button>
+                </>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '16px' }}>Тест</h4>
+                    <button 
+                      onClick={() => setShowQuiz(false)}
+                      style={{ fontSize: '12px', background: '#e5e7eb', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', color: '#333' }}
+                    >
+                      Назад
+                    </button>
+                  </div>
+                  
+                  {quizQuestions.map((q, idx) => {
+                    const userAnswer = userAnswers[idx];
+                    const isAnswered = userAnswer !== undefined;
+                    
+                    return (
+                      <div key={idx} style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
+                        <p style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{idx + 1}. {q.question}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {q.options.map((opt: string) => {
+                            let bgColor = '#f3f4f6'; // серый по умолчанию
+                            let textColor = '#000';
+                            
+                            if (isAnswered) {
+                              if (opt === q.answer) {
+                                bgColor = '#dcfce7'; // зеленый (правильный)
+                                textColor = '#166534';
+                              } else if (opt === userAnswer && userAnswer !== q.answer) {
+                                bgColor = '#fee2e2'; // красный (ошибка пользователя)
+                                textColor = '#991b1b';
+                              }
+                            }
+
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => handleAnswerClick(idx, opt)}
+                                disabled={isAnswered}
+                                style={{
+                                  padding: '6px',
+                                  textAlign: 'left',
+                                  background: bgColor,
+                                  color: textColor,
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  cursor: isAnswered ? 'default' : 'pointer',
+                                  fontSize: '13px'
+                                }}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
