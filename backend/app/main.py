@@ -512,10 +512,6 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
     db.query(KnowledgeNode).filter(KnowledgeNode.label.like("Тестовый узел%")).delete(synchronize_session=False)
     db.commit()
     
-    # groq_api_key = os.getenv("GROQ_API_KEY")
-    # if not groq_api_key:
-    #     raise HTTPException(status_code=500, detail="GROQ_API_KEY not found")
-
     prompt = f"""
     Создай логическую структуру учебного курса по теме "{topic}".
     Курс должен состоять из 10-12 взаимосвязанных тем (уроков), от простого к сложному.
