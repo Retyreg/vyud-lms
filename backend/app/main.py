@@ -16,6 +16,75 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY environment variable is not set")
 
+async def call_ai(prompt: str, system: str, json_mode: bool = True) -> str:
+    """
+    Универсальная функция вызова ИИ.
+    Сначала пробует Groq, при ошибке — Gemini через litellm.
+    """
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt}
+    ]
+    
+    # --- Попытка 1: Groq ---
+    try:
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": messages,
+            "temperature": 0.4,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                raw_bytes = response.content
+                # Очистка спецсимволов
+                clean_bytes = raw_bytes.replace(b'\xe2\x80\xa8', b' ').replace(b'\xe2\x80\xa9', b' ')
+                safe_text = clean_bytes.decode('utf-8', errors='replace')
+                
+                groq_data = json.loads(safe_text)
+                return groq_data['choices'][0]['message']['content']
+            else:
+                print(f"Groq API returned {response.status_code}. Falling back...")
+                
+    except Exception as e:
+        print(f"Groq failed: {e}. Falling back to Gemini...")
+
+    # --- Попытка 2: Gemini (Fallback) ---
+    try:
+        model = "gemini/gemini-1.5-flash"
+        api_ver = "v1"
+        
+        # litellm completion is synchronous by default, but can be awaited if using async version, 
+        # or we wrap it. For simplicity in this context we call it directly as before.
+        # Note: litellm.completion is blocking, but we are inside async def. 
+        # It's better to run it in executor if strictly async, but we'll stick to simple call as per request logic.
+        response = completion(
+            model=model, 
+            messages=messages,
+            api_version=api_ver
+        )
+        content = response.choices[0].message.content
+        
+        # Clean up text just in case
+        content = content.replace('\u2028', ' ').replace('\u2029', ' ')
+        return content
+
+    except Exception as e:
+        print(f"Gemini failed: {e}")
+        raise HTTPException(status_code=503, detail="All AI providers unavailable")
+
 from app.db.base import Base, engine, SessionLocal
 import app.models 
 from app.models.course import Course
@@ -288,54 +357,28 @@ async def generate_subtopics(node_id: int, db: Session = Depends(get_db)):
     ]
     """
 
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": "Ты — методист образовательных программ. Отвечай только строгим JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.4,
-        "response_format": {"type": "json_object"}
-    }
-    
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=20.0
-            )
-            
-            if response.status_code != 200:
-                 raise HTTPException(status_code=500, detail="AI Error")
+        content = await call_ai(
+            prompt=prompt, 
+            system="Ты — методист образовательных программ. Отвечай только строгим JSON."
+        )
 
-            raw_bytes = response.content
-            clean_bytes = raw_bytes.replace(b'\xe2\x80\xa8', b' ').replace(b'\xe2\x80\xa9', b' ')
-            safe_text = clean_bytes.decode('utf-8', errors='replace')
-            
-            groq_data = json.loads(safe_text)
-            content = groq_data['choices'][0]['message']['content']
-            
-            # Очистка
-            content = content.strip()
-            if content.startswith('```json'): content = content[7:]
-            if content.startswith('```'): content = content[3:]
-            if content.endswith('```'): content = content[:-3]
-            content = content.strip()
-            
-            # Парсинг
-            parsed = json.loads(content)
-            subtopics_data = []
-            if isinstance(parsed, dict) and "subtopics" in parsed:
-                subtopics_data = parsed["subtopics"]
-            elif isinstance(parsed, list):
-                subtopics_data = parsed
-            
-            # Сохраняем в БД
+        # Очистка
+        content = content.strip()
+        if content.startswith('```json'): content = content[7:]
+        if content.startswith('```'): content = content[3:]
+        if content.endswith('```'): content = content[:-3]
+        content = content.strip()
+        
+        # Парсинг
+        parsed = json.loads(content)
+        subtopics_data = []
+        if isinstance(parsed, dict) and "subtopics" in parsed:
+            subtopics_data = parsed["subtopics"]
+        elif isinstance(parsed, list):
+            subtopics_data = parsed
+        
+        # Сохраняем в БД
             created_subtopics = []
             for sub in subtopics_data:
                 label = sub.get("label")
@@ -394,7 +437,6 @@ async def generate_course(request: CourseGenerationRequest, db: Session = Depend
     db.commit()
 
     topic = request.topic
-    model = "gemini/gemini-1.5-flash"
     
     prompt = f"""
     Создай подробную дорожную карту изучения темы "{topic}".
@@ -418,29 +460,16 @@ async def generate_course(request: CourseGenerationRequest, db: Session = Depend
     ]
     """
 
-    messages = [
-        {"role": "system", "content": "Ты — методист образовательных программ. Ты отвечаешь только строгим JSON."},
-        {"role": "user", "content": prompt}
-    ]
-
-    print(f"Генерация курса '{topic}' моделью {model}...")
+    print(f"Генерация курса '{topic}'...")
 
     try:
-        # Принудительно ставим v1 для Gemini
-        api_ver = "v1" if "gemini" in model else None
-        
-        response = completion(
-            model=model, 
-            messages=messages,
-            api_version=api_ver
+        content = await call_ai(
+            prompt=prompt,
+            system="Ты — методист образовательных программ. Ты отвечаешь только строгим JSON."
         )
-        raw_text = response.choices[0].message.content
-        
-        # Жесткая очистка кодировки
-        clean_text = raw_text.encode('utf-8', 'ignore').decode('utf-8').replace('\u2028', ' ').replace('\u2029', ' ')
 
         # Очистка от markdown
-        clean_text = clean_text.replace("```json", "").replace("```", "").strip()
+        clean_text = content.replace("```json", "").replace("```", "").strip()
         
         nodes_data = json.loads(clean_text)
         
@@ -529,54 +558,21 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
     Для первой темы список должен быть пустым.
     """
 
-    # Payload для API
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": "Ты — архитектор образовательных программ. Ты отвечаешь только строгим JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.3,
-        "response_format": {"type": "json_object"}
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=30.0
-            )
-            
-            if response.status_code != 200:
-                error_body = response.content.decode('utf-8', errors='ignore')
-                raise HTTPException(status_code=500, detail=f"AI Provider Error ({response.status_code}): {error_body}")
+        ai_content = await call_ai(
+            prompt=prompt,
+            system="Ты — архитектор образовательных программ. Ты отвечаешь только строгим JSON."
+        )
 
-            # БЕЗОПАСНОЕ чтение байтов и очистка на уровне байтов
-            raw_bytes = response.content
-            # Заменяем разделители строк (U+2028 и U+2029) на пробелы прямо в байтах
-            clean_bytes = raw_bytes.replace(b'\xe2\x80\xa8', b' ').replace(b'\xe2\x80\xa9', b' ')
-            
-            # Декодируем
-            safe_text = clean_bytes.decode('utf-8', errors='replace')
-            
-            # Парсим ответ API
-            groq_data = json.loads(safe_text)
-            ai_content = groq_data['choices'][0]['message']['content']
-            
-            # Очистка контента от markdown
-            ai_content = ai_content.strip()
-            if ai_content.startswith('```json'):
-                ai_content = ai_content[7:]
-            elif ai_content.startswith('```'):
-                ai_content = ai_content[3:]
-            if ai_content.endswith('```'):
-                ai_content = ai_content[:-3]
-            ai_content = ai_content.strip()
+        # Очистка контента от markdown
+        ai_content = ai_content.strip()
+        if ai_content.startswith('```json'):
+            ai_content = ai_content[7:]
+        elif ai_content.startswith('```'):
+            ai_content = ai_content[3:]
+        if ai_content.endswith('```'):
+            ai_content = ai_content[:-3]
+        ai_content = ai_content.strip()
 
         try:
             nodes_data = json.loads(ai_content)
@@ -642,45 +638,13 @@ async def explain_topic(topic: str, model: str = "groq/llama-3.3-70b-versatile")
     """
     Генерирует короткое объяснение темы с помощью ИИ (через прямой запрос к Groq).
     """
-    # Системный промпт
-    messages = [
-        {"role": "system", "content": "Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка."},
-        {"role": "user", "content": f"Объясни тему: {topic}"}
-    ]
-
-    # Payload для API
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": messages,
-        "temperature": 0.5,
-        "max_tokens": 300
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=15.0
-            )
-            
-            if response.status_code != 200:
-                 error_body = response.content.decode('utf-8', errors='ignore')
-                 raise HTTPException(status_code=500, detail=f"AI Provider Error ({response.status_code}): {error_body}")
-
-            # БЕЗОПАСНОЕ чтение байтов и очистка
-            raw_bytes = response.content
-            clean_bytes = raw_bytes.replace(b'\xe2\x80\xa8', b' ').replace(b'\xe2\x80\xa9', b' ')
-            safe_text = clean_bytes.decode('utf-8', errors='replace')
-            
-            groq_data = json.loads(safe_text)
-            content = groq_data['choices'][0]['message']['content']
-            
-            return ExplanationResponse(explanation=content)
+        content = await call_ai(
+            prompt=f"Объясни тему: {topic}",
+            system="Ты — опытный и дружелюбный репетитор по программированию. Объясни тему кратко (2-3 предложения), просто и понятно для новичка.",
+            json_mode=False
+        )
+        return ExplanationResponse(explanation=content)
 
     except Exception as e:
         safe_trace = traceback.format_exc().encode('ascii', 'replace').decode('ascii')
@@ -724,53 +688,25 @@ async def get_quiz(topic: str, model: str = "groq/llama-3.3-70b-versatile", db: 
     Описание темы: {description}
     """
     
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": "Ты — генератор тестов. Твой ответ должен быть СТРОГО валидным JSON без каких-либо вступительных слов или markdown разметки."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.5, # Чуть выше температура для креативности
-        "response_format": {"type": "json_object"}
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=15.0
-            )
-            
-            if response.status_code != 200:
-                error_body = response.content.decode('utf-8', errors='ignore')
-                raise HTTPException(status_code=500, detail=f"AI Quiz Error ({response.status_code}): {error_body}")
+        content = await call_ai(
+            prompt=prompt,
+            system="Ты — генератор тестов. Твой ответ должен быть СТРОГО валидным JSON без каких-либо вступительных слов или markdown разметки."
+        )
 
-            # БЕЗОПАСНОЕ чтение байтов и очистка
-            raw_bytes = response.content
-            clean_bytes = raw_bytes.replace(b'\xe2\x80\xa8', b' ').replace(b'\xe2\x80\xa9', b' ')
-            safe_text = clean_bytes.decode('utf-8', errors='replace')
-            
-            groq_data = json.loads(safe_text)
-            content = groq_data['choices'][0]['message']['content']
-            
-            # Очистка от markdown
-            content = content.strip()
-            if content.startswith('```json'):
-                content = content[7:]
-            elif content.startswith('```'):
-                content = content[3:]
-            if content.endswith('```'):
-                content = content[:-3]
-            content = content.strip()
-            
-            # Парсинг JSON ответа
-            try:
-                parsed = json.loads(content)
+        # Очистка от markdown
+        content = content.strip()
+        if content.startswith('```json'):
+            content = content[7:]
+        elif content.startswith('```'):
+            content = content[3:]
+        if content.endswith('```'):
+            content = content[:-3]
+        content = content.strip()
+        
+        # Парсинг JSON ответа
+        try:
+            parsed = json.loads(content)
                 questions_data = []
 
                 # Если вернулся словарь с ключом questions (как мы просили в новом промпте)
