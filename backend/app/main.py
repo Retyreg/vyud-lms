@@ -12,6 +12,10 @@ from litellm import completion
 
 load_dotenv()
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY environment variable is not set")
+
 from app.db.base import Base, engine, SessionLocal
 import app.models 
 from app.models.course import Course
@@ -294,16 +298,12 @@ async def generate_subtopics(node_id: int, db: Session = Depends(get_db)):
         "response_format": {"type": "json_object"}
     }
     
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GROQ_API_KEY not found")
-
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json=payload,
@@ -541,15 +541,11 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
     }
 
     try:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="GROQ_API_KEY not found")
-        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json=payload,
@@ -661,15 +657,11 @@ async def explain_topic(topic: str, model: str = "groq/llama-3.3-70b-versatile")
     }
 
     try:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="GROQ_API_KEY not found")
-        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json=payload,
@@ -743,15 +735,11 @@ async def get_quiz(topic: str, model: str = "groq/llama-3.3-70b-versatile", db: 
     }
 
     try:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="GROQ_API_KEY not found")
-
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json=payload,
