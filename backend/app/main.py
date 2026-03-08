@@ -707,35 +707,35 @@ async def get_quiz(topic: str, model: str = "groq/llama-3.3-70b-versatile", db: 
         # Парсинг JSON ответа
         try:
             parsed = json.loads(content)
-                questions_data = []
+            questions_data = []
 
-                # Если вернулся словарь с ключом questions (как мы просили в новом промпте)
-                if isinstance(parsed, dict) and "questions" in parsed:
-                    questions_data = parsed["questions"]
-                # Fallback: если вернулся список
-                elif isinstance(parsed, list):
-                    questions_data = parsed
-                
-                # Валидация полей (убедимся, что correct_answer это int)
-                valid_questions = []
-                for q in questions_data:
-                    if "question" in q and "options" in q and "correct_answer" in q:
-                         # Иногда модели могут вернуть строку вместо числа, починим
-                         if isinstance(q["correct_answer"], str):
-                             if q["correct_answer"].isdigit():
-                                 q["correct_answer"] = int(q["correct_answer"])
-                             else:
-                                 # Если вернул "A", "B"... или текст ответа, попробуем найти индекс или дефолт
-                                 q["correct_answer"] = 0 
-                         
-                         valid_questions.append(q)
-                
-                questions_data = valid_questions
+            # Если вернулся словарь с ключом questions (как мы просили в новом промпте)
+            if isinstance(parsed, dict) and "questions" in parsed:
+                questions_data = parsed["questions"]
+            # Fallback: если вернулся список
+            elif isinstance(parsed, list):
+                questions_data = parsed
+            
+            # Валидация полей (убедимся, что correct_answer это int)
+            valid_questions = []
+            for q in questions_data:
+                if "question" in q and "options" in q and "correct_answer" in q:
+                        # Иногда модели могут вернуть строку вместо числа, починим
+                        if isinstance(q["correct_answer"], str):
+                            if q["correct_answer"].isdigit():
+                                q["correct_answer"] = int(q["correct_answer"])
+                            else:
+                                # Если вернул "A", "B"... или текст ответа, попробуем найти индекс или дефолт
+                                q["correct_answer"] = 0 
+                        
+                        valid_questions.append(q)
+            
+            questions_data = valid_questions
 
-            except json.JSONDecodeError:
-                 raise HTTPException(status_code=500, detail="Invalid JSON from AI")
+        except json.JSONDecodeError:
+                raise HTTPException(status_code=500, detail="Invalid JSON from AI")
 
-            return QuizResponse(questions=questions_data)
+        return QuizResponse(questions=questions_data)
 
     except Exception as e:
         safe_trace = traceback.format_exc().encode('ascii', 'replace').decode('ascii')
