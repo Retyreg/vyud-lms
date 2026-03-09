@@ -1,9 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
+litellm
 sqlalchemy
 psycopg2-binary
-groq
-python-dotenv
 pydantic
-litellm
-litellm
+python-dotenv
