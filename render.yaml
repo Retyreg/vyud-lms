@@ -1,0 +1,34 @@
+# render.yaml - Конфигурация инфраструктуры как кода (IaC) для Render
+# Разместите этот файл в корне вашего репозитория (рядом с папками frontend и backend)
+
+services:
+  - type: web
+    name: vyud-lms-backend
+    env: python
+    # Указываем Render, что весь код бэкенда находится в этой папке
+    rootDir: backend
+    # Команда сборки: устанавливаем зависимости
+    buildCommand: pip install -r requirements.txt
+    # Команда запуска: uvicorn биндится на 0.0.0.0 и порт, который выдаст Render
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    
+    # План по умолчанию (можно поменять на starter или standard для production)
+    plan: free
+    
+    envVars:
+      # Фиксируем версию Python, указанную в README (3.13)
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      
+      # ==========================================
+      # ⚠️ СЕКРЕТЫ (sync: false)
+      # ==========================================
+      # Значение 'sync: false' означает, что Render создаст эти переменные
+      # в дашборде, но НЕ будет тянуть их из этого файла.
+      # Сами значения нужно будет один раз вставить вручную в панели Render -> Environment
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
