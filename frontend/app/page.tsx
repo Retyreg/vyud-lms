@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { ReactFlow, Background, Controls, useNodesState, useEdgesState, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 const fallbackNodes = [
   { id: 'test-1', position: { x: 100, y: 100 }, data: { label: 'Тестовый узел 1' }, style: { background: '#fff', border: '2px solid red', padding: '10px' } },
   { id: 'test-2', position: { x: 400, y: 100 }, data: { label: 'Тестовый узел 2' }, style: { background: '#fff', border: '2px solid red', padding: '10px' } }
@@ -73,7 +75,7 @@ function Flow() {
     setUserAnswers({});
 
     try {
-      const res = await fetch(`http://localhost:8000/api/explain/${encodeURIComponent(topic)}?model=${selectedModel}`);
+      const res = await fetch(`${API_BASE_URL}/api/explain/${encodeURIComponent(topic)}?model=${selectedModel}`);
       if (!res.ok) {
         setExplanation("Ошибка получения данных от API");
       } else {
@@ -97,7 +99,7 @@ function Flow() {
 
     try {
         // Реальный запрос к бэкенду
-        const res = await fetch(`http://localhost:8000/api/nodes/${nodeId}/subtopics`, {
+        const res = await fetch(`${API_BASE_URL}/api/nodes/${nodeId}/subtopics`, {
             method: 'POST'
         });
 
@@ -192,7 +194,7 @@ function Flow() {
     if (!selectedTopic) return;
     setIsQuizLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/quiz/${encodeURIComponent(selectedTopic)}?model=${selectedModel}`);
+      const res = await fetch(`${API_BASE_URL}/api/quiz/${encodeURIComponent(selectedTopic)}?model=${selectedModel}`);
       if (res.ok) {
         const data = await res.json();
         setQuizQuestions(data.questions || []);
@@ -225,7 +227,7 @@ function Flow() {
     }
 
     try {
-      const res = await fetch(`http://localhost:8000/api/nodes/${selectedNodeId}/check-quiz`, {
+      const res = await fetch(`${API_BASE_URL}/api/nodes/${selectedNodeId}/check-quiz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -288,7 +290,7 @@ function Flow() {
   };
 
   const fetchGraph = useCallback(() => {
-    fetch('http://localhost:8000/api/knowledge-graph')
+    fetch(`${API_BASE_URL}/api/knowledge-graph`)
       .then(res => res.json())
       .then(data => {
         console.log("СЫРЫЕ ДАННЫЕ:", data);
@@ -375,7 +377,7 @@ function Flow() {
     if (!newCourseTopic.trim()) return;
     setIsGenerating(true);
     try {
-      const res = await fetch('http://localhost:8000/api/courses/generate', {
+      const res = await fetch(`${API_BASE_URL}/api/courses/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: newCourseTopic })
