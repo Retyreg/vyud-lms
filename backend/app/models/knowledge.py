@@ -12,6 +12,7 @@ class KnowledgeNode(Base):
     is_completed = Column(Boolean, default=False)
     prerequisites = Column(JSON, default=[]) # Список ID необходимых узлов
     parent_id = Column(Integer, ForeignKey("knowledge_nodes.id"), nullable=True) # ID родительского узла
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True) # Привязка к курсу
     
     children = relationship("KnowledgeNode", backref=backref("parent", remote_side=[id]))
 

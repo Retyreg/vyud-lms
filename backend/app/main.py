@@ -187,6 +187,48 @@ def get_all_nodes(db: Session = Depends(get_db)):
         ))
     return node_schemas
 
+@app.get("/api/courses/latest", response_model=GraphResponse)
+def get_latest_course(db: Session = Depends(get_db)):
+    """
+    Возвращает структуру дерева навыков для последнего сгенерированного курса.
+    """
+    course = db.query(Course).order_by(Course.id.desc()).first()
+    
+    if not course:
+        return GraphResponse(nodes=[], edges=[])
+        
+    nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
+    # Fallback для старых узлов без курса
+    if not nodes:
+        nodes = db.query(KnowledgeNode).all()
+        
+    node_ids = {n.id for n in nodes}
+    edges = db.query(KnowledgeEdge).filter(
+        KnowledgeEdge.source_id.in_(node_ids),
+        KnowledgeEdge.target_id.in_(node_ids)
+    ).all()
+    
+    completed_ids = {n.id for n in nodes if n.is_completed}
+    
+    node_schemas = []
+    for n in nodes:
+        prereqs = n.prerequisites or []
+        is_available = all(pid in completed_ids for pid in prereqs)
+        
+        node_schemas.append(NodeSchema(
+            id=n.id, 
+            label=n.label, 
+            level=n.level, 
+            is_completed=n.is_completed,
+            is_available=is_available,
+            prerequisites=prereqs
+        ))
+
+    return GraphResponse(
+        nodes=node_schemas,
+        edges=[EdgeSchema(source=e.source_id, target=e.target_id) for e in edges]
+    )
+
 @app.get("/api/knowledge-graph", response_model=GraphResponse)
 def get_knowledge_graph(db: Session = Depends(get_db)):
     """
@@ -473,6 +515,11 @@ async def generate_course(request: CourseGenerationRequest, db: Session = Depend
         # Нам нужно сопоставить временные ID (из JSON) с реальными ID в БД
         temp_id_map = {} # temp_id -> db_id
         
+        # Создаем запись курса
+        new_course = Course(title=topic, description=f"Сгенерированный курс: {topic}")
+        db.add(new_course)
+        db.flush()
+
         # 1. Сначала создаем все узлы без связей
         created_nodes = []
         for node_data in nodes_data:
@@ -487,7 +534,8 @@ async def generate_course(request: CourseGenerationRequest, db: Session = Depend
                 description=node_data.get("description", ""),
                 level=node_data.get("level", 1),
                 is_completed=False,
-                prerequisites=[] # Пока пусто
+                prerequisites=[], # Пока пусто
+                course_id=new_course.id
             )
             db.add(new_node)
             db.flush() # Получаем ID, но не коммитим пока всё
@@ -576,6 +624,10 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
             raise HTTPException(status_code=500, detail="AI returned invalid JSON structure")
         
         # Логика сохранения в БД
+        new_course = Course(title=topic, description=f"Умная генерация: {topic}")
+        db.add(new_course)
+        db.flush()
+
         title_to_id = {}
         created_nodes = []
 
@@ -592,7 +644,8 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
                     description=node_data.get("description", ""),
                     level=1,
                     is_completed=False,
-                    prerequisites=[]
+                    prerequisites=[],
+                    course_id=new_course.id
                 )
                 db.add(new_node)
                 db.flush()

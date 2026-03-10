@@ -293,7 +293,7 @@ function Flow() {
   };
 
   const fetchGraph = useCallback(() => {
-    fetch(`${API_BASE_URL}/api/knowledge-graph`)
+    fetch(`${API_BASE_URL}/api/courses/latest`)
       .then(res => res.json())
       .then(data => {
         console.log("СЫРЫЕ ДАННЫЕ:", data);
