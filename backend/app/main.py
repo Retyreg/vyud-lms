@@ -196,7 +196,7 @@ def get_latest_course(db: Session = Depends(get_db)):
     course = db.query(Course).order_by(Course.id.desc()).first()
     
     if not course:
-        return GraphResponse(nodes=[], edges=[])
+        return {"nodes": [], "edges": []}
         
     nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
     # Fallback для старых узлов без курса
