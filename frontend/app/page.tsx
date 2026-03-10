@@ -294,10 +294,11 @@ function Flow() {
 
   const fetchGraph = useCallback(() => {
     fetch(`${API_BASE_URL}/api/courses/latest`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("База пуста (404)"); // Глушим ошибку, чтобы не парсить HTML
+        return res.json();
+      })
       .then(data => {
-        console.log("СЫРЫЕ ДАННЫЕ:", data);
-        
         if (data && data.nodes && data.nodes.length > 0) {
           const formattedNodes = data.nodes.map((node: any, index: number) => {
             const safeY = (node.level || 1) * 150;
@@ -307,23 +308,20 @@ function Flow() {
             const isAvailable = node.is_available;
             
             let bg = '#fff';
-            let border = '2px solid #3b82f6'; // синий по дефолту
+            let border = '2px solid #3b82f6';
             let opacity = 1;
             let color = '#000';
             let cursor = 'pointer';
 
             if (isCompleted) {
-              bg = '#4ADE80'; // Зеленый
+              bg = '#4ADE80';
               border = '2px solid #166534';
             } else if (!isAvailable) {
-              bg = '#f3f4f6'; // серый
-              border = '2px dashed #d1d5db'; // пунктир
+              bg = '#f3f4f6';
+              border = '2px dashed #d1d5db';
               opacity = 0.6;
               color = '#9ca3af';
               cursor = 'not-allowed';
-            } else {
-                // Доступен, но не пройден (белый фон)
-                bg = '#fff';
             }
 
             return {
@@ -339,18 +337,10 @@ function Flow() {
                   isAvailable
               },
               style: { 
-                  background: bg, 
-                  border: border, 
-                  padding: '10px', 
-                  borderRadius: '12px', 
-                  color: color, 
-                  opacity: opacity,
-                  width: 200,
-                  fontSize: '14px',
-                  textAlign: 'center',
-                  boxShadow: isAvailable ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none',
-                  transition: 'all 0.5s ease',
-                  cursor: cursor
+                  background: bg, border: border, padding: '10px', borderRadius: '12px', 
+                  color: color, opacity: opacity, width: 200, fontSize: '14px',
+                  textAlign: 'center', boxShadow: isAvailable ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none',
+                  transition: 'all 0.5s ease', cursor: cursor
               },
               draggable: true 
             };
@@ -369,12 +359,14 @@ function Flow() {
           setEdges(formattedEdges);
         }
       })
-      .catch(err => console.error("Ошибка сети:", err));
+      .catch(err => console.log("Загрузка графа: ", err.message));
   }, [setNodes, setEdges]);
 
+  // ВОТ ОН - ФИКС! Пустой массив [] гарантирует, что запрос уйдет РОВНО 1 раз!
   useEffect(() => {
     fetchGraph();
-  }, [fetchGraph]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleGenerateCourse = async () => {
