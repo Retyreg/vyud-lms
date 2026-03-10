@@ -188,6 +188,7 @@ def get_all_nodes(db: Session = Depends(get_db)):
     return node_schemas
 
 @app.get("/api/courses/latest", response_model=GraphResponse)
+@app.get("/api/courses/latest/", response_model=GraphResponse, include_in_schema=False)
 def get_latest_course(db: Session = Depends(get_db)):
     """
     Возвращает структуру дерева навыков для последнего сгенерированного курса.
