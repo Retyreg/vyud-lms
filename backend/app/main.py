@@ -44,7 +44,7 @@ async def call_ai(prompt: str, system: str, json_mode: bool = True) -> str:
                     "Content-Type": "application/json"
                 },
                 json=payload,
-                timeout=30.0
+                timeout=60.0
             )
             
             if response.status_code == 200:
@@ -625,56 +625,62 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
             raise HTTPException(status_code=500, detail="AI returned invalid JSON structure")
         
         # Логика сохранения в БД
-        new_course = Course(title=topic, description=f"Умная генерация: {topic}")
-        db.add(new_course)
-        db.flush()
+        try:
+            new_course = Course(title=topic, description=f"Умная генерация: {topic}")
+            db.add(new_course)
+            db.flush()
 
-        title_to_id = {}
-        created_nodes = []
+            title_to_id = {}
+            created_nodes = []
 
-        for node_data in nodes_data:
-            title = node_data["title"]
-            existing = db.query(KnowledgeNode).filter(KnowledgeNode.label == title).first()
+            for node_data in nodes_data:
+                title = node_data["title"]
+                existing = db.query(KnowledgeNode).filter(KnowledgeNode.label == title).first()
+                
+                if existing:
+                    title_to_id[title] = existing.id
+                    created_nodes.append((existing, node_data.get("list_of_prerequisite_titles", [])))
+                else:
+                    new_node = KnowledgeNode(
+                        label=title,
+                        description=node_data.get("description", ""),
+                        level=1,
+                        is_completed=False,
+                        prerequisites=[],
+                        course_id=new_course.id
+                    )
+                    db.add(new_node)
+                    db.flush()
+                    title_to_id[title] = new_node.id
+                    created_nodes.append((new_node, node_data.get("list_of_prerequisite_titles", [])))
             
-            if existing:
-                title_to_id[title] = existing.id
-                created_nodes.append((existing, node_data.get("list_of_prerequisite_titles", [])))
-            else:
-                new_node = KnowledgeNode(
-                    label=title,
-                    description=node_data.get("description", ""),
-                    level=1,
-                    is_completed=False,
-                    prerequisites=[],
-                    course_id=new_course.id
-                )
-                db.add(new_node)
-                db.flush()
-                title_to_id[title] = new_node.id
-                created_nodes.append((new_node, node_data.get("list_of_prerequisite_titles", [])))
-        
-        for node, prereq_titles in created_nodes:
-            current_prereqs = node.prerequisites or []
-            new_prereq_ids = []
-            
-            for p_title in prereq_titles:
-                if p_title in title_to_id:
-                    p_id = title_to_id[p_title]
-                    if p_id != node.id:
-                         new_prereq_ids.append(p_id)
-                         
-                         edge_exists = db.query(KnowledgeEdge).filter(
-                            KnowledgeEdge.source_id == p_id,
-                            KnowledgeEdge.target_id == node.id
-                         ).first()
-                         if not edge_exists:
-                             db.add(KnowledgeEdge(source_id=p_id, target_id=node.id))
-            
-            updated_prereqs = list(set(current_prereqs + new_prereq_ids))
-            node.prerequisites = updated_prereqs
+            for node, prereq_titles in created_nodes:
+                current_prereqs = node.prerequisites or []
+                new_prereq_ids = []
+                
+                for p_title in prereq_titles:
+                    if p_title in title_to_id:
+                        p_id = title_to_id[p_title]
+                        if p_id != node.id:
+                             new_prereq_ids.append(p_id)
+                             
+                             edge_exists = db.query(KnowledgeEdge).filter(
+                                KnowledgeEdge.source_id == p_id,
+                                KnowledgeEdge.target_id == node.id
+                             ).first()
+                             if not edge_exists:
+                                 db.add(KnowledgeEdge(source_id=p_id, target_id=node.id))
+                
+                updated_prereqs = list(set(current_prereqs + new_prereq_ids))
+                node.prerequisites = updated_prereqs
 
-        db.commit()
-        return {"status": "ok", "message": f"Course '{topic}' generated.", "nodes_count": len(nodes_data)}
+            db.commit()
+            return {"status": "ok", "message": f"Course '{topic}' generated.", "nodes_count": len(nodes_data)}
+        except Exception as db_err:
+            db.rollback()
+            print(f"DATABASE ERROR in generate_course_smart: {db_err}")
+            print(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=f"Database error during course saving: {str(db_err)}")
 
     except Exception as e:
         db.rollback()
