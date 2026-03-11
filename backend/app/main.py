@@ -3,6 +3,7 @@ import os
 import httpx
 import traceback
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -57,10 +58,20 @@ from app.db.base import Base, engine, SessionLocal
 from app.models.course import Course
 from app.models.knowledge import KnowledgeNode, KnowledgeEdge
 
-# Создаем таблицы при старте
-Base.metadata.create_all(bind=engine)
+# Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if engine is not None:
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created/verified successfully")
+        except Exception as e:
+            logger.error(f"Failed to create database tables: {e}")
+    else:
+        logger.warning("No database engine available — skipping table creation")
+    yield
 
-app = FastAPI(title="VYUD LMS API")
+app = FastAPI(title="VYUD LMS API", lifespan=lifespan)
 
 # Разрешаем запросы с Vercel
 app.add_middleware(
@@ -72,6 +83,8 @@ app.add_middleware(
 )
 
 def get_db():
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="Database service is temporarily unavailable.")
     db = SessionLocal()
     try:
         yield db
