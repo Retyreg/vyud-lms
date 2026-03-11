@@ -84,7 +84,7 @@ app.add_middleware(
 
 def get_db():
     if SessionLocal is None:
-        raise HTTPException(status_code=503, detail="Database service is temporarily unavailable.")
+        raise HTTPException(status_code=503, detail="Database is not configured on this server.")
     db = SessionLocal()
     try:
         yield db
