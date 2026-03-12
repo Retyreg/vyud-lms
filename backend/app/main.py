@@ -1,15 +1,20 @@
 import json
+import re
 import os
+import time
 import httpx
-import traceback
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
 from litellm import completion
+
+_start_time = time.time()
 
 # Настройка логирования для отслеживания ошибок
 logging.basicConfig(level=logging.INFO)
@@ -57,10 +62,20 @@ from app.db.base import Base, engine, SessionLocal
 from app.models.course import Course
 from app.models.knowledge import KnowledgeNode, KnowledgeEdge
 
-# Создаем таблицы при старте
-Base.metadata.create_all(bind=engine)
+# Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if engine is not None:
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created/verified successfully")
+        except Exception as e:
+            logger.error(f"Failed to create database tables: {e}")
+    else:
+        logger.warning("No database engine available — skipping table creation")
+    yield
 
-app = FastAPI(title="VYUD LMS API")
+app = FastAPI(title="VYUD LMS API", lifespan=lifespan)
 
 # Разрешаем запросы с Vercel
 app.add_middleware(
@@ -72,6 +87,8 @@ app.add_middleware(
 )
 
 def get_db():
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="Database is not configured on this server.")
     db = SessionLocal()
     try:
         yield db
@@ -100,7 +117,42 @@ class CourseGenerationRequest(BaseModel):
 def read_root():
     return {"status": "ok", "message": "Backend is running!"}
 
-# ТОТ САМЫЙ МАРШРУТ, КОТОРОГО НЕ ХВАТАЛО НА VERCEL (ошибка 404)
+@app.get("/api/health")
+def health_check():
+    """Возвращает статус всех компонентов системы."""
+    db_status = "not_configured"
+    db_error: str | None = None
+
+    if engine is not None:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_status = "connected"
+        except Exception as exc:
+            db_status = "error"
+            # Log the full error server-side but return only a generic message
+            # to avoid leaking connection strings or internal paths.
+            logger.error(f"Health check DB error: {exc}")
+            db_error = "Database connection failed"
+    
+    uptime_seconds = int(time.time() - _start_time)
+
+    groq_configured = bool(os.getenv("GROQ_API_KEY"))
+    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
+    ai_configured = groq_configured or gemini_configured
+
+    overall = "ok" if (db_status == "connected" and ai_configured) else "degraded"
+
+    return {
+        "status": overall,
+        "uptime_seconds": uptime_seconds,
+        "database": db_status,
+        "database_error": db_error,
+        "ai_groq": "configured" if groq_configured else "not_configured",
+        "ai_gemini": "configured" if gemini_configured else "not_configured",
+    }
+
+
 @app.get("/api/courses/latest", response_model=GraphResponse)
 def get_latest_course(db: Session = Depends(get_db)):
     course = db.query(Course).order_by(Course.id.desc()).first()
@@ -136,18 +188,48 @@ def get_latest_course(db: Session = Depends(get_db)):
 @app.post("/api/courses/generate")
 async def generate_course_smart(request: CourseGenerationRequest, db: Session = Depends(get_db)):
     topic = request.topic
-    prompt = f"Создай дорожную карту обучения теме '{topic}'. Верни JSON массив из 5-7 объектов: [{{'title': '...', 'description': '...', 'list_of_prerequisite_titles': []}}]"
+    prompt = (
+        f"Создай дорожную карту обучения теме '{topic}'. "
+        f"Верни JSON-массив из 5–7 объектов, где каждый объект: "
+        f'[{{"title": "...", "description": "...", "list_of_prerequisite_titles": []}}]'
+    )
 
     try:
-        ai_content = await call_ai(prompt, "Ты профи. Ответ только JSON.")
-        
+        # json_mode=False — не навязываем формат «JSON-object», чтобы модель
+        # могла вернуть JSON-массив напрямую.
+        ai_content = await call_ai(prompt, "Ты эксперт. Ответ — только валидный JSON без комментариев.", json_mode=False)
+
+        # Извлекаем JSON из возможной markdown-обёртки
         if "```json" in ai_content:
             ai_content = ai_content.split("```json")[1].split("```")[0]
         elif "```" in ai_content:
             ai_content = ai_content.split("```")[1].split("```")[0]
+        else:
+            # Пытаемся найти первый JSON-массив или объект в тексте
+            m = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", ai_content)
+            if m:
+                ai_content = m.group(1)
+
+        parsed = json.loads(ai_content.strip())
+
+        # Модель могла вернуть объект вида {"courses": [...]} или {"nodes": [...]}
+        # вместо прямого массива — нормализуем:
+        if isinstance(parsed, dict):
+            nodes_data = next(
+                (v for v in parsed.values() if isinstance(v, list)),
+                None,
+            )
+            if nodes_data is None:
+                raise ValueError(f"AI вернул объект без списка: {list(parsed.keys())}")
+        else:
+            nodes_data = parsed
         
-        nodes_data = json.loads(ai_content.strip())
-        
+        # Validate each item has the required 'title' key
+        if not nodes_data or not all(isinstance(n, dict) and "title" in n for n in nodes_data):
+            raise ValueError(
+                "AI вернул некорректные данные: каждый элемент должен быть объектом с полем 'title'"
+            )
+
         new_course = Course(title=topic, description=f"Курс: {topic}")
         db.add(new_course)
         db.flush()
