@@ -47,6 +47,8 @@ from app.db.base import Base  # noqa: E402
 # Models must be imported so their metadata is registered before create_all
 import app.models.course  # noqa: E402, F401
 import app.models.knowledge  # noqa: E402, F401
+import app.models.user  # noqa: E402, F401
+import app.models.task  # noqa: E402, F401
 import app.main as main_module  # noqa: E402
 
 
@@ -274,3 +276,163 @@ class TestPostgresUrlNormalisation:
         assert "postgres://" in source and "postgresql://" in source, (
             "base.py must rewrite postgres:// to postgresql://"
         )
+
+
+# ===========================================================================
+# /api/v1/auth -- registration and login
+# ===========================================================================
+
+class TestAuthRegister:
+    def test_register_returns_201(self):
+        res = CLIENT.post("/api/v1/auth/register", json={
+            "email": "alice@example.com",
+            "password": "secret123",
+            "full_name": "Alice",
+        })
+        assert res.status_code == 201
+        body = res.json()
+        assert body["email"] == "alice@example.com"
+        assert body["role"] == "associate"
+        assert "hashed_password" not in body
+
+    def test_register_duplicate_email_returns_409(self):
+        CLIENT.post("/api/v1/auth/register", json={
+            "email": "bob@example.com",
+            "password": "secret123",
+        })
+        res = CLIENT.post("/api/v1/auth/register", json={
+            "email": "bob@example.com",
+            "password": "other",
+        })
+        assert res.status_code == 409
+
+    def test_register_with_role(self):
+        res = CLIENT.post("/api/v1/auth/register", json={
+            "email": "manager@example.com",
+            "password": "secret123",
+            "role": "store_manager",
+        })
+        assert res.status_code == 201
+        assert res.json()["role"] == "store_manager"
+
+    def test_register_missing_required_fields(self):
+        res = CLIENT.post("/api/v1/auth/register", json={"email": "nopw@example.com"})
+        assert res.status_code == 422
+
+    def test_register_invalid_email(self):
+        res = CLIENT.post("/api/v1/auth/register", json={
+            "email": "not-an-email",
+            "password": "secret123",
+        })
+        assert res.status_code == 422
+
+
+class TestAuthLogin:
+    def test_login_returns_token(self):
+        CLIENT.post("/api/v1/auth/register", json={
+            "email": "carol@example.com",
+            "password": "mypassword",
+        })
+        res = CLIENT.post("/api/v1/auth/login", json={
+            "email": "carol@example.com",
+            "password": "mypassword",
+        })
+        assert res.status_code == 200
+        body = res.json()
+        assert "access_token" in body
+        assert body["token_type"] == "bearer"
+        assert body["user"]["email"] == "carol@example.com"
+
+    def test_login_wrong_password_returns_401(self):
+        CLIENT.post("/api/v1/auth/register", json={
+            "email": "dave@example.com",
+            "password": "correct",
+        })
+        res = CLIENT.post("/api/v1/auth/login", json={
+            "email": "dave@example.com",
+            "password": "wrong",
+        })
+        assert res.status_code == 401
+
+    def test_login_unknown_email_returns_401(self):
+        res = CLIENT.post("/api/v1/auth/login", json={
+            "email": "nobody@example.com",
+            "password": "whatever",
+        })
+        assert res.status_code == 401
+
+
+# ===========================================================================
+# /api/v1/tasks -- task management CRUD
+# ===========================================================================
+
+class TestTaskCRUD:
+    def test_list_tasks_empty(self):
+        res = CLIENT.get("/api/v1/tasks")
+        assert res.status_code == 200
+        assert isinstance(res.json(), list)
+
+    def test_create_task_returns_201(self):
+        res = CLIENT.post("/api/v1/tasks", json={"title": "Проверка витрины"})
+        assert res.status_code == 201
+        body = res.json()
+        assert body["title"] == "Проверка витрины"
+        assert body["status"] == "pending"
+
+    def test_create_task_with_checklist(self):
+        res = CLIENT.post("/api/v1/tasks", json={
+            "title": "Открытие магазина",
+            "checklist": [
+                {"title": "Включить свет", "is_done": False, "photo_required": False},
+                {"title": "Фото входа", "is_done": False, "photo_required": True},
+            ],
+        })
+        assert res.status_code == 201
+        assert len(res.json()["checklist"]) == 2
+
+    def test_get_task_by_id(self):
+        create_res = CLIENT.post("/api/v1/tasks", json={"title": "Задача для чтения"})
+        task_id = create_res.json()["id"]
+        res = CLIENT.get(f"/api/v1/tasks/{task_id}")
+        assert res.status_code == 200
+        assert res.json()["id"] == task_id
+
+    def test_get_task_not_found_returns_404(self):
+        res = CLIENT.get("/api/v1/tasks/999999")
+        assert res.status_code == 404
+
+    def test_update_task_status(self):
+        create_res = CLIENT.post("/api/v1/tasks", json={"title": "Задача на обновление"})
+        task_id = create_res.json()["id"]
+        res = CLIENT.patch(f"/api/v1/tasks/{task_id}", json={"status": "in_progress"})
+        assert res.status_code == 200
+        assert res.json()["status"] == "in_progress"
+
+    def test_complete_task_sets_completed_at(self):
+        create_res = CLIENT.post("/api/v1/tasks", json={"title": "Завершённая задача"})
+        task_id = create_res.json()["id"]
+        res = CLIENT.patch(f"/api/v1/tasks/{task_id}", json={"status": "completed"})
+        assert res.status_code == 200
+        assert res.json()["completed_at"] is not None
+
+    def test_delete_task(self):
+        create_res = CLIENT.post("/api/v1/tasks", json={"title": "Задача на удаление"})
+        task_id = create_res.json()["id"]
+        del_res = CLIENT.delete(f"/api/v1/tasks/{task_id}")
+        assert del_res.status_code == 204
+        assert CLIENT.get(f"/api/v1/tasks/{task_id}").status_code == 404
+
+    def test_delete_task_not_found_returns_404(self):
+        res = CLIENT.delete("/api/v1/tasks/999999")
+        assert res.status_code == 404
+
+    def test_create_task_requires_title(self):
+        res = CLIENT.post("/api/v1/tasks", json={"description": "Без заголовка"})
+        assert res.status_code == 422
+
+    def test_list_tasks_filter_by_status(self):
+        CLIENT.post("/api/v1/tasks", json={"title": "Фильтр: ожидание"})
+        res = CLIENT.get("/api/v1/tasks?status_filter=pending")
+        assert res.status_code == 200
+        body = res.json()
+        assert all(t["status"] == "pending" for t in body)

@@ -5,14 +5,24 @@ import time
 import httpx
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+from datetime import datetime, UTC
+from typing import List, Optional
+
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
 from litellm import completion
+
+try:
+    from passlib.context import CryptContext
+    _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+    _passlib_available = True
+except Exception:  # pragma: no cover
+    _passlib_available = False
+    _pwd_context = None  # type: ignore[assignment]
 
 _start_time = time.time()
 
@@ -61,6 +71,8 @@ async def call_ai(prompt: str, system: str, json_mode: bool = True) -> str:
 from app.db.base import Base, engine, SessionLocal
 from app.models.course import Course
 from app.models.knowledge import KnowledgeNode, KnowledgeEdge
+from app.models.user import User, UserRole
+from app.models.task import Task, TaskStatus, TaskPriority
 
 # Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
 @asynccontextmanager
@@ -270,3 +282,226 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
 async def explain_topic(topic: str):
     content = await call_ai(f"Объясни для новичка: {topic}", "Ты репетитор.", json_mode=False)
     return {"explanation": content}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Auth endpoints  (spec section 4.4 / 6.1)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _hash_password(password: str) -> str:
+    """Hash a plain-text password with bcrypt (cost=12 per spec 6.2)."""
+    if _passlib_available and _pwd_context is not None:
+        return _pwd_context.hash(password)
+    # Fallback for test environments where passlib may not be installed.
+    # Uses PBKDF2-HMAC-SHA256 (standard-library KDF) — still secure for tests.
+    import hashlib
+    import secrets
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260000)
+    return f"pbkdf2${salt}${dk.hex()}"
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plain-text password against its hash."""
+    if _passlib_available and _pwd_context is not None:
+        try:
+            return _pwd_context.verify(plain, hashed)
+        except Exception:
+            pass
+    # Fallback: verify PBKDF2 hashes created by the fallback hasher above.
+    if hashed.startswith("pbkdf2$"):
+        import hashlib
+        try:
+            _, salt, stored_hex = hashed.split("$", 2)
+            dk = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt.encode(), 260000)
+            return dk.hex() == stored_hex
+        except Exception:
+            return False
+    return False
+
+
+class UserRegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.ASSOCIATE
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str]
+    role: UserRole
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+@app.post("/api/v1/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED,
+          tags=["auth"])
+def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)):
+    """Register a new user. Passwords are hashed with bcrypt (cost=12)."""
+    existing = db.query(User).filter(User.email == request.email).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user = User(
+        email=request.email,
+        hashed_password=_hash_password(request.password),
+        full_name=request.full_name,
+        role=request.role,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/api/v1/auth/login", tags=["auth"])
+def login_user(request: LoginRequest, db: Session = Depends(get_db)):
+    """Authenticate a user and return a placeholder token.
+
+    In production this endpoint will issue JWT access/refresh tokens via
+    Auth0/Cognito (spec section 6.1). The token field is intentionally a
+    placeholder for the MVP — replace with real JWT issuance before pilot.
+    """
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user or not _verify_password(request.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    return {
+        "token_type": "bearer",
+        # TODO: replace with real JWT (Auth0/Cognito) before pilot
+        "access_token": f"placeholder_token_user_{user.id}",
+        "user": {"id": user.id, "email": user.email, "role": user.role},
+    }
+
+
+@app.get("/api/v1/users/me", response_model=UserResponse, tags=["users"])
+def get_current_user_placeholder():
+    """Placeholder — returns 501 until JWT middleware is wired up."""
+    raise HTTPException(status_code=501, detail="JWT auth not yet implemented — see Auth0/Cognito integration")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Task management endpoints  (spec Phase 1 / section 4.4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    priority: TaskPriority = TaskPriority.MEDIUM
+    assignee_id: Optional[int] = None
+    due_date: Optional[datetime] = None
+    checklist: Optional[List[dict]] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    assignee_id: Optional[int] = None
+    due_date: Optional[datetime] = None
+    checklist: Optional[List[dict]] = None
+    photo_url: Optional[str] = None
+
+
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    status: TaskStatus
+    priority: TaskPriority
+    assignee_id: Optional[int]
+    created_by_id: Optional[int]
+    checklist: Optional[List[dict]]
+    due_date: Optional[datetime]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    photo_url: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+@app.get("/api/v1/tasks", response_model=List[TaskResponse], tags=["tasks"])
+def list_tasks(
+    status_filter: Optional[TaskStatus] = None,
+    assignee_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """List tasks with optional filters. Supports cursor-based style via offset."""
+    q = db.query(Task)
+    if status_filter:
+        q = q.filter(Task.status == status_filter)
+    if assignee_id is not None:
+        q = q.filter(Task.assignee_id == assignee_id)
+    return q.order_by(Task.created_at.desc()).offset(offset).limit(limit).all()
+
+
+@app.post("/api/v1/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED,
+          tags=["tasks"])
+def create_task(request: TaskCreate, db: Session = Depends(get_db)):
+    """Create a new task."""
+    task = Task(
+        title=request.title,
+        description=request.description,
+        priority=request.priority,
+        assignee_id=request.assignee_id,
+        due_date=request.due_date,
+        checklist=request.checklist or [],
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+@app.get("/api/v1/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    """Get a single task by ID."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@app.patch("/api/v1/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
+def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(get_db)):
+    """Update a task. Marks completed_at when status → completed."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    for field, value in request.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
+
+    if request.status == TaskStatus.COMPLETED and not task.completed_at:
+        task.completed_at = datetime.now(tz=UTC)
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+@app.delete("/api/v1/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["tasks"])
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Delete a task."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
