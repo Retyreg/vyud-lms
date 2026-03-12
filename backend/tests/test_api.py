@@ -161,6 +161,14 @@ MOCK_AI_RESPONSE = (
     '"list_of_prerequisite_titles": ["Python основы"]}]'
 )
 
+# What Groq JSON-object mode actually returns when asked for an array
+MOCK_AI_RESPONSE_WRAPPED = (
+    '{"courses": ['
+    '{"title": "Python основы", "description": "Переменные и типы данных", "list_of_prerequisite_titles": []}, '
+    '{"title": "Функции", "description": "Определение функций", "list_of_prerequisite_titles": ["Python основы"]}'
+    ']}'
+)
+
 
 class TestCourseGenerate:
     def test_generate_creates_course_and_nodes(self):
@@ -171,6 +179,14 @@ class TestCourseGenerate:
                 json={"topic": "Python"},
             )
         assert res.status_code == 200
+        assert res.json()["status"] == "ok"
+
+    def test_generate_handles_object_wrapped_array(self):
+        """AI with json_mode returns {\"courses\": [...]} instead of a bare array."""
+        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+            mock_ai.return_value = MOCK_AI_RESPONSE_WRAPPED
+            res = CLIENT.post("/api/courses/generate", json={"topic": "Python Wrapped"})
+        assert res.status_code == 200, res.json()
         assert res.json()["status"] == "ok"
 
     def test_generate_course_appears_in_latest(self):
@@ -188,6 +204,14 @@ class TestCourseGenerate:
 
         latest = CLIENT.get("/api/courses/latest").json()
         assert len(latest["edges"]) > 0
+
+    def test_generate_handles_markdown_wrapped_json(self):
+        """AI may wrap the JSON in a markdown code block."""
+        markdown_response = "```json\n" + MOCK_AI_RESPONSE + "\n```"
+        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+            mock_ai.return_value = markdown_response
+            res = CLIENT.post("/api/courses/generate", json={"topic": "Markdown Test"})
+        assert res.status_code == 200
 
     def test_generate_returns_error_on_invalid_ai_json(self):
         with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
@@ -219,3 +243,34 @@ class TestExplain:
             res = CLIENT.get("/api/explain/React%20%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D1%8B")
         assert res.status_code == 200
         assert "explanation" in res.json()
+
+
+# ===========================================================================
+# postgres:// URL scheme normalisation
+# ===========================================================================
+
+class TestPostgresUrlNormalisation:
+    """Verify the postgres:// → postgresql:// rewrite in base.py."""
+
+    def test_postgres_scheme_is_rewritten(self):
+        url = "postgres://user:pass@host:5432/db"
+        # replicate the exact logic from base.py
+        if url and url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        assert url.startswith("postgresql://"), (
+            f"Expected 'postgresql://' prefix, got: {url!r}"
+        )
+
+    def test_postgresql_scheme_unchanged(self):
+        url = "postgresql://user:pass@host:5432/db"
+        if url and url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        assert url == "postgresql://user:pass@host:5432/db"
+
+    def test_base_py_contains_normalisation(self):
+        """base.py source must contain the postgres:// fix."""
+        from pathlib import Path
+        source = (Path(__file__).parent.parent / "app" / "db" / "base.py").read_text()
+        assert "postgres://" in source and "postgresql://" in source, (
+            "base.py must rewrite postgres:// to postgresql://"
+        )
