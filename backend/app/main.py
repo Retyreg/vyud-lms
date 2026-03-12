@@ -1,16 +1,19 @@
 import json
 import os
+import time
 import httpx
-import traceback
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
 from litellm import completion
+
+_start_time = time.time()
 
 # Настройка логирования для отслеживания ошибок
 logging.basicConfig(level=logging.INFO)
@@ -113,7 +116,39 @@ class CourseGenerationRequest(BaseModel):
 def read_root():
     return {"status": "ok", "message": "Backend is running!"}
 
-# ТОТ САМЫЙ МАРШРУТ, КОТОРОГО НЕ ХВАТАЛО НА VERCEL (ошибка 404)
+@app.get("/api/health")
+def health_check():
+    """Возвращает статус всех компонентов системы."""
+    db_status = "not_configured"
+    db_error: str | None = None
+
+    if engine is not None:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_status = "connected"
+        except Exception as exc:
+            db_status = "error"
+            db_error = str(exc)
+    
+    uptime_seconds = int(time.time() - _start_time)
+
+    groq_configured = bool(os.getenv("GROQ_API_KEY"))
+    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
+    ai_configured = groq_configured or gemini_configured
+
+    overall = "ok" if (db_status == "connected" and ai_configured) else "degraded"
+
+    return {
+        "status": overall,
+        "uptime_seconds": uptime_seconds,
+        "database": db_status,
+        "database_error": db_error,
+        "ai_groq": "configured" if groq_configured else "not_configured",
+        "ai_gemini": "configured" if gemini_configured else "not_configured",
+    }
+
+
 @app.get("/api/courses/latest", response_model=GraphResponse)
 def get_latest_course(db: Session = Depends(get_db)):
     course = db.query(Course).order_by(Course.id.desc()).first()

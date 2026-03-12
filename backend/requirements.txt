@@ -6,3 +6,8 @@ sqlalchemy
 psycopg2-binary
 pydantic
 python-dotenv
+
+# Testing
+pytest
+pytest-asyncio
+anyio[trio]
