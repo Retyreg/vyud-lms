@@ -6,9 +6,10 @@ import '@xyflow/react/dist/style.css';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://vyud-lms-backend.onrender.com";
 
-const RETRY_MAX_ATTEMPTS = 6;
+const RETRY_MAX_ATTEMPTS = 10;
 const RETRY_BASE_DELAY_MS = 5000;
-const RETRY_MAX_DELAY_MS = 20000;
+const RETRY_MAX_DELAY_MS = 30000;
+const HEALTH_POLL_INTERVAL_MS = 30000;
 
 type BackendStatus = 'loading' | 'warming' | 'ok' | 'error';
 
@@ -150,7 +151,9 @@ function Flow() {
   const [hasNodes, setHasNodes] = useState(false);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const healthTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const attemptRef = useRef(0);
+  const backendStatusRef = useRef<BackendStatus>('loading');
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -172,8 +175,10 @@ function Flow() {
 
     if (attempt > 1) {
       setBackendStatus('warming');
+      backendStatusRef.current = 'warming';
     } else {
       setBackendStatus('loading');
+      backendStatusRef.current = 'loading';
     }
 
     try {
@@ -183,6 +188,7 @@ function Flow() {
         // 503 = DB not configured, still show the UI
         if (res.status === 503) {
           setBackendStatus('ok');
+          backendStatusRef.current = 'ok';
           fetchHealth();
           return;
         }
@@ -191,6 +197,7 @@ function Flow() {
 
       const data = await res.json();
       setBackendStatus('ok');
+      backendStatusRef.current = 'ok';
       fetchHealth();
 
       if (data?.nodes?.length > 0) {
@@ -224,19 +231,34 @@ function Flow() {
       if (attempt < RETRY_MAX_ATTEMPTS) {
         const delay = Math.min(RETRY_BASE_DELAY_MS * attempt, RETRY_MAX_DELAY_MS);
         setBackendStatus('warming');
+        backendStatusRef.current = 'warming';
         retryTimerRef.current = setTimeout(() => fetchGraph(true), delay);
       } else {
         setBackendStatus('error');
+        backendStatusRef.current = 'error';
       }
     }
   }, [setNodes, setEdges, fitView, fetchHealth]);
 
   useEffect(() => {
     fetchGraph();
+    // Poll health independently so the status panel is always current,
+    // even if graph fetch is still retrying or in error state.
+    fetchHealth();
+    healthTimerRef.current = setInterval(fetchHealth, HEALTH_POLL_INTERVAL_MS);
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      if (healthTimerRef.current) clearInterval(healthTimerRef.current);
     };
-  }, [fetchGraph]);
+  }, [fetchGraph, fetchHealth]);
+
+  // When health recovers while graph is in error state → auto-retry silently.
+  useEffect(() => {
+    if (health !== null && backendStatusRef.current === 'error') {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      fetchGraph(); // fresh start: resets attempt counter, prevents concurrent retries
+    }
+  }, [health, fetchGraph]);
 
   const handleGenerateCourse = async () => {
     if (!newCourseTopic.trim()) return;

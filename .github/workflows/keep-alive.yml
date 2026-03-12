@@ -1,0 +1,26 @@
+name: Keep Backend Alive
+
+# Render free plan spins down after 15 minutes of inactivity.
+# This workflow pings the health endpoint every 14 minutes so the server
+# stays warm and users never see "Сервер недоступен".
+
+on:
+  schedule:
+    - cron: "*/14 * * * *" # Every 14 minutes, 24/7
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake up Render backend
+        run: |
+          echo "Pinging https://vyud-lms-backend.onrender.com/api/health …"
+          curl --silent --fail --max-time 30 \
+            "https://vyud-lms-backend.onrender.com/api/health" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('Status:', d.get('status')); print('DB:', d.get('database')); print('Uptime:', d.get('uptime_seconds'), 's')" \
+            || echo "Ping failed (server may still be waking up)"

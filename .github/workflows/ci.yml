@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "copilot/**"]
+  pull_request:
+    branches: [main, develop]
+
+# Restrict default GITHUB_TOKEN permissions (principle of least privilege)
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Backend: lint → test → build → security-scan
+  # ─────────────────────────────────────────────
+  backend-lint:
+    name: Backend — Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt flake8
+
+      - name: Run flake8
+        run: flake8 app/ --max-line-length=120 --exclude=__pycache__ --extend-ignore=E402,W293,W291,E302,E261,E501
+
+  backend-test:
+    name: Backend — Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v --tb=short
+
+  backend-build:
+    name: Backend — Docker Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [backend-lint, backend-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t vyud-lms-backend:ci ./backend
+
+  backend-security:
+    name: Backend — Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [backend-lint, backend-test]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies and security tools
+        run: pip install -r requirements.txt pip-audit bandit
+
+      - name: Run pip-audit (dependency vulnerabilities)
+        run: pip-audit -r requirements.txt --skip-editable || true
+
+      - name: Run bandit (SAST)
+        run: bandit -r app/ -ll --exit-zero
+
+  # ─────────────────────────────────────────────
+  # Frontend: lint → build → security-scan
+  # ─────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend — Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint -- --max-warnings 0
+
+  frontend-build:
+    name: Frontend — Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [frontend-lint]
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://vyud-lms-backend.onrender.com
+
+  frontend-security:
+    name: Frontend — Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high || true

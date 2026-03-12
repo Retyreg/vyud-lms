@@ -4,8 +4,10 @@ httpx
 litellm
 sqlalchemy
 psycopg2-binary
-pydantic
+pydantic[email]
 python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
 
 # Testing
 pytest
