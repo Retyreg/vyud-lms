@@ -46,7 +46,7 @@ services:
       DATABASE_URL: postgresql://vyudlms:vyudlms_dev@postgres:5432/vyudlms
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      SECRET_KEY: ${SECRET_KEY:-dev_secret_change_in_production}
+      SECRET_KEY: ${SECRET_KEY:-INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION}
     depends_on:
       postgres:
         condition: service_healthy
