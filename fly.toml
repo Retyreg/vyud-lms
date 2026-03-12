@@ -1,0 +1,51 @@
+# fly.toml — Конфигурация деплоя VYUD LMS backend на Fly.io
+#
+# Fly.io free allowance (на март 2026):
+#   - 3 shared-cpu-1x 256 MB VM — бесплатно навсегда
+#   - Нет автоматического засыпания (в отличие от Render free)
+#   - 3 GB persistent storage
+#
+# Деплой:
+#   1. fly auth login
+#   2. fly apps create vyud-lms-backend   (один раз)
+#   3. fly secrets set DATABASE_URL="..." SECRET_KEY="..." GROQ_API_KEY="..." GEMINI_API_KEY="..."
+#   4. fly deploy
+#
+# После деплоя: https://vyud-lms-backend.fly.dev
+# Обновить NEXT_PUBLIC_API_URL на Vercel → https://vyud-lms-backend.fly.dev
+
+app = "vyud-lms-backend"
+primary_region = "ams" # Amsterdam — ближайший к РФ
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PYTHONUNBUFFERED = "1"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false  # Никогда не засыпать
+  auto_start_machines = true
+  min_machines_running = 1    # Всегда держать минимум 1 инстанс
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[checks]
+  [checks.health]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health"
+    port = 8000
+    timeout = "10s"
+    type = "http"

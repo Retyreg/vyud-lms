@@ -6,6 +6,41 @@
 
 ---
 
+## ⚡ Срочно (проблема «Сервер недоступен»)
+
+**Симптом:** Vercel-сайт открывается, но внизу красная плашка «Сервер недоступен».  
+**Причина:** Render.com free-plan засыпает через 15 минут без запросов.
+
+### Быстрый фикс (уже в репо, заработает сам) ✅
+- `keep-alive.yml` — GitHub Actions пингует `/api/health` **каждые 14 минут**. После мёрджа в `main` бэкенд перестанет засыпать.
+
+### Правильное решение — переезд на Fly.io 🛩️
+Fly.io бесплатно и **никогда не засыпает**. Конфиг уже в репо (`fly.toml`).
+
+**Три шага для переезда (делается один раз):**
+```bash
+# 1. Зарегистрироваться на https://fly.io (нужна карта, но деньги не списываются)
+# 2. Установить flyctl: https://fly.io/docs/hands-on/install-flyctl/
+fly auth login
+
+# 3. Создать приложение и задать секреты
+fly apps create vyud-lms-backend
+fly secrets set \
+  DATABASE_URL="postgresql://..." \
+  SECRET_KEY="your-secret-key" \
+  GROQ_API_KEY="gsk_..." \
+  GEMINI_API_KEY="..."
+
+# 4. Первый деплой
+fly deploy
+```
+После деплоя бэкенд будет на `https://vyud-lms-backend.fly.dev`.  
+Обновить переменную на Vercel: `NEXT_PUBLIC_API_URL` → `https://vyud-lms-backend.fly.dev`
+
+Все последующие деплои — автоматически при пуше в `main` (через `deploy-fly.yml`).
+
+---
+
 ## ✅ Уже сделано
 
 ### Сессия 1 — Фундамент платформы
@@ -18,7 +53,13 @@
 - [x] **Здоровье системы** — `GET /api/health` возвращает статус БД, AI, аптайм; виджет в UI
 - [x] **RBAC-роли** — `super_admin`, `regional_manager`, `store_manager`, `associate`
 
-### Сессия 2 — Auth + Задачи + Курсы + Лента
+### Сессия 3 — Деплой: фикс «Сервер недоступен»
+- [x] **Диагностика** — Render free plan засыпает через 15 мин → фикс через keep-alive пинги
+- [x] **`keep-alive.yml`** — GitHub Actions cron каждые 14 мин пингует `/api/health` на Render
+- [x] **`fly.toml`** — конфиг для Fly.io (не засыпает, бесплатно, Amsterdam)
+- [x] **`deploy-fly.yml`** — auto-deploy при пуше в `main` через `FLY_API_TOKEN`
+- [ ] **Выполнить миграцию на Fly.io** (нужен flyctl + секреты, 3 команды выше)
+
 - [x] **JWT аутентификация** — `POST /api/v1/auth/register`, `POST /api/v1/auth/login`
   - Возвращает `access_token` (15 мин) + `refresh_token` (24 ч) по спеку 6.1
   - `POST /api/v1/auth/token/refresh` — обновление токена
