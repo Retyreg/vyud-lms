@@ -12,7 +12,9 @@
 - Все миграции только через Alembic (`make migration`)
 - Auth: всегда через `get_telegram_user` dependency
 - Секреты: только из `os.getenv()`, никогда хардкод
-- Коммиты: атомарные, conventional commits (feat/fix/chore)
+- Коммиты: атомарные, один коммит = одна задача, максимум 72 символа
+  - Формат: `feat/fix/chore: описание`
+  - Пример: `feat: add SM-2 spaced repetition to knowledge nodes`
 - Тесты: pytest, минимум smoke test на новый эндпоинт
 
 ## Структура
