@@ -6,6 +6,7 @@ import httpx
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
+from app.auth.dependencies import get_telegram_user
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -53,14 +54,20 @@ async def call_ai(prompt: str, system: str, json_mode: bool = True) -> str:
     except Exception as e:
         logger.error(f"Groq failed: {str(e)}")
 
-    # Запасной вариант на случай проблем с Groq
-    response = completion(model="gemini/gemini-1.5-flash", messages=messages)
-    return response.choices[0].message.content
+    # Fallback to Gemini via LiteLLM
+    try:
+        response = completion(model="gemini/gemini-2.0-flash", messages=messages)
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Gemini fallback failed: {str(e)}")
+
+    raise RuntimeError("All AI providers unavailable")
 
 # Импорты БД
 from app.db.base import Base, engine, SessionLocal
 from app.models.course import Course
-from app.models.knowledge import KnowledgeNode, KnowledgeEdge
+from app.models.knowledge import KnowledgeNode, KnowledgeEdge, NodeExplanation
+from app.models.org import Organization, OrgMember
 
 # Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
 @asynccontextmanager
@@ -112,6 +119,19 @@ class GraphResponse(BaseModel):
 
 class CourseGenerationRequest(BaseModel):
     topic: str
+
+class OrgCreateRequest(BaseModel):
+    name: str
+    manager_key: str  # email или любой идентификатор менеджера
+
+class OrgJoinRequest(BaseModel):
+    user_key: str     # идентификатор сотрудника
+
+class MemberProgress(BaseModel):
+    user_key: str
+    completed_count: int
+    total_count: int
+    percent: float
 
 @app.get("/")
 def read_root():
@@ -186,7 +206,11 @@ def get_latest_course(db: Session = Depends(get_db)):
     }
 
 @app.post("/api/courses/generate")
-async def generate_course_smart(request: CourseGenerationRequest, db: Session = Depends(get_db)):
+async def generate_course_smart(
+    request: CourseGenerationRequest,
+    db: Session = Depends(get_db),
+    _tg_user: dict = Depends(get_telegram_user),
+):
     topic = request.topic
     prompt = (
         f"Создай дорожную карту обучения теме '{topic}'. "
@@ -262,11 +286,256 @@ async def generate_course_smart(request: CourseGenerationRequest, db: Session = 
         db.commit()
         return {"status": "ok", "message": "Success"}
 
+    except RuntimeError as e:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/explain/{topic}")
-async def explain_topic(topic: str):
-    content = await call_ai(f"Объясни для новичка: {topic}", "Ты репетитор.", json_mode=False)
-    return {"explanation": content}
+@app.get("/api/explain/{node_id}")
+async def explain_node(node_id: int, regenerate: bool = False, db: Session = Depends(get_db)):
+    # 1. Найти узел по id
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    # 2. Проверить кэш (если не regenerate)
+    if not regenerate:
+        cached = db.query(NodeExplanation)\
+            .filter(NodeExplanation.node_id == node_id)\
+            .order_by(NodeExplanation.created_at.desc())\
+            .first()
+        if cached:
+            return {"explanation": cached.explanation, "cached": True}
+
+    # 3. Сформировать промпт
+    description_part = f"\nКонтекст: {node.description}" if node.description else ""
+    prompt = f"Объясни концепт '{node.label}' простым языком для новичка.{description_part}"
+    system = (
+        "Ты AI-тьютор платформы VYUD. Правила: "
+        "начни с ключевой идеи (1-2 предложения), "
+        "приведи конкретный пример из жизни, "
+        "объясни почему это важно знать. "
+        "Максимум 120 слов. "
+        "Не используй слова 'данный', 'следует отметить'. "
+        "Отвечай сразу — без вводных фраз типа 'Конечно!' или 'Отличный вопрос!'."
+    )
+
+    # 4. Вызвать AI
+    try:
+        explanation = await call_ai(prompt, system, json_mode=False)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
+
+    # 5. Сохранить в кэш (upsert)
+    existing = db.query(NodeExplanation)\
+        .filter(NodeExplanation.node_id == node_id).first()
+    if existing:
+        existing.explanation = explanation
+    else:
+        db.add(NodeExplanation(node_id=node_id, explanation=explanation))
+    db.commit()
+
+    return {"explanation": explanation, "cached": False}
+
+@app.post("/api/nodes/{node_id}/complete")
+def mark_node_complete(node_id: int, db: Session = Depends(get_db)):
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    node.is_completed = True
+    db.commit()
+    return {"status": "ok", "node_id": node_id}
+
+
+# --- Org endpoints ---
+
+@app.post("/api/orgs")
+def create_org(request: OrgCreateRequest, db: Session = Depends(get_db)):
+    """Менеджер создаёт организацию и получает инвайт-ссылку."""
+    org = Organization(name=request.name)
+    db.add(org)
+    db.flush()
+    db.add(OrgMember(org_id=org.id, user_key=request.manager_key, is_manager=True))
+    db.commit()
+    db.refresh(org)
+    return {
+        "org_id": org.id,
+        "org_name": org.name,
+        "invite_code": org.invite_code,
+        "invite_url": f"?invite={org.invite_code}",
+    }
+
+
+@app.post("/api/orgs/join")
+def join_org(invite_code: str, request: OrgJoinRequest, db: Session = Depends(get_db)):
+    """Сотрудник вступает в организацию по инвайт-коду."""
+    org = db.query(Organization).filter(Organization.invite_code == invite_code).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Invite code not found")
+    existing = db.query(OrgMember).filter(
+        OrgMember.org_id == org.id,
+        OrgMember.user_key == request.user_key
+    ).first()
+    if existing:
+        return {"org_id": org.id, "org_name": org.name, "already_member": True}
+    db.add(OrgMember(org_id=org.id, user_key=request.user_key, is_manager=False))
+    db.commit()
+    return {"org_id": org.id, "org_name": org.name, "already_member": False}
+
+
+@app.get("/api/orgs/{org_id}/courses/latest", response_model=GraphResponse)
+def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
+    """Граф последнего курса организации."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    course = db.query(Course).filter(
+        Course.org_id == org_id
+    ).order_by(Course.id.desc()).first()
+    # Обратная совместимость: если у org нет своего курса — показать глобальный
+    if not course:
+        course = db.query(Course).filter(
+            Course.org_id == None  # noqa: E711
+        ).order_by(Course.id.desc()).first()
+    if not course:
+        return {"nodes": [], "edges": []}
+    nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
+    if not nodes:
+        return {"nodes": [], "edges": []}
+    node_ids = {n.id for n in nodes}
+    edges = db.query(KnowledgeEdge).filter(
+        KnowledgeEdge.source_id.in_(node_ids),
+        KnowledgeEdge.target_id.in_(node_ids)
+    ).all()
+    completed_ids = {n.id for n in nodes if n.is_completed}
+    node_schemas = []
+    for n in nodes:
+        prereqs = n.prerequisites or []
+        is_available = all(pid in completed_ids for pid in prereqs)
+        node_schemas.append(NodeSchema(
+            id=n.id, label=n.label, level=n.level,
+            is_completed=n.is_completed, is_available=is_available
+        ))
+    return {
+        "nodes": node_schemas,
+        "edges": [{"source": e.source_id, "target": e.target_id} for e in edges],
+    }
+
+
+@app.get("/api/orgs/{org_id}/progress")
+def get_org_progress(org_id: int, db: Session = Depends(get_db)):
+    """Дашборд менеджера: прогресс каждого участника команды."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    course = db.query(Course).filter(
+        Course.org_id == org_id
+    ).order_by(Course.id.desc()).first()
+    if not course:
+        course = db.query(Course).filter(
+            Course.org_id == None  # noqa: E711
+        ).order_by(Course.id.desc()).first()
+    total = 0
+    completed = 0
+    if course:
+        all_nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
+        total = len(all_nodes)
+        completed = sum(1 for n in all_nodes if n.is_completed)
+    # Для пилота is_completed глобальный — у всех одинаковый прогресс.
+    # Индивидуальный прогресс — задача Фазы 3 после первого платящего клиента.
+    result = []
+    for m in members:
+        pct = round(completed / total * 100, 1) if total > 0 else 0.0
+        result.append(MemberProgress(
+            user_key=m.user_key,
+            completed_count=completed,
+            total_count=total,
+            percent=pct,
+        ))
+    return {
+        "org_name": org.name,
+        "invite_code": org.invite_code,
+        "members": result,
+    }
+
+
+@app.post("/api/orgs/{org_id}/courses/generate")
+async def generate_org_course(
+    org_id: int,
+    request: CourseGenerationRequest,
+    db: Session = Depends(get_db),
+):
+    """Генерация курса привязанного к организации."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    topic = request.topic
+    prompt = (
+        f"Создай дорожную карту обучения теме '{topic}'. "
+        f"Верни JSON-массив из 5–7 объектов, где каждый объект: "
+        f'[{{"title": "...", "description": "...", "list_of_prerequisite_titles": []}}]'
+    )
+    try:
+        ai_content = await call_ai(prompt, "Ты эксперт. Ответ — только валидный JSON без комментариев.", json_mode=False)
+
+        if "```json" in ai_content:
+            ai_content = ai_content.split("```json")[1].split("```")[0]
+        elif "```" in ai_content:
+            ai_content = ai_content.split("```")[1].split("```")[0]
+        else:
+            m = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", ai_content)
+            if m:
+                ai_content = m.group(1)
+
+        parsed = json.loads(ai_content.strip())
+        if isinstance(parsed, dict):
+            nodes_data = next((v for v in parsed.values() if isinstance(v, list)), None)
+            if nodes_data is None:
+                raise ValueError(f"AI вернул объект без списка: {list(parsed.keys())}")
+        else:
+            nodes_data = parsed
+
+        if not nodes_data or not all(isinstance(n, dict) and "title" in n for n in nodes_data):
+            raise ValueError("AI вернул некорректные данные")
+
+        new_course = Course(title=topic, description=f"Курс: {topic}", org_id=org_id)
+        db.add(new_course)
+        db.flush()
+
+        title_to_id = {}
+        created_nodes = []
+        for node_data in nodes_data:
+            new_node = KnowledgeNode(
+                label=node_data["title"],
+                description=node_data.get("description", ""),
+                level=1,
+                course_id=new_course.id,
+                prerequisites=[],
+            )
+            db.add(new_node)
+            db.flush()
+            title_to_id[node_data["title"]] = new_node.id
+            created_nodes.append((new_node, node_data.get("list_of_prerequisite_titles", [])))
+
+        for node, prereq_titles in created_nodes:
+            new_prereq_ids = []
+            for p_title in prereq_titles:
+                if p_title in title_to_id:
+                    p_id = title_to_id[p_title]
+                    new_prereq_ids.append(p_id)
+                    db.add(KnowledgeEdge(source_id=p_id, target_id=node.id))
+            node.prerequisites = new_prereq_ids
+
+        db.commit()
+        return {"status": "ok", "message": "Success"}
+
+    except RuntimeError:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

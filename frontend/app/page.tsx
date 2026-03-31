@@ -144,6 +144,13 @@ function Flow() {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [nodeId, setNodeId] = useState<number | null>(null);
+  const [isCached, setIsCached] = useState(false);
+  const [orgId, setOrgId] = useState<number | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [showOrgSetup, setShowOrgSetup] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [userKey, setUserKey] = useState('');
   const [newCourseTopic, setNewCourseTopic] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading');
@@ -177,7 +184,11 @@ function Flow() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/courses/latest`);
+      const currentOrgId = localStorage.getItem('vyud_org_id');
+      const endpoint = currentOrgId
+        ? `${API_BASE_URL}/api/orgs/${currentOrgId}/courses/latest`
+        : `${API_BASE_URL}/api/courses/latest`;
+      const res = await fetch(endpoint);
 
       if (!res.ok) {
         // 503 = DB not configured, still show the UI
@@ -238,6 +249,45 @@ function Flow() {
     };
   }, [fetchGraph]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    const savedOrgId = localStorage.getItem('vyud_org_id');
+    const savedOrgName = localStorage.getItem('vyud_org_name');
+
+    if (savedOrgId) {
+      setOrgId(Number(savedOrgId));
+      setOrgName(savedOrgName);
+    } else if (invite) {
+      setInviteCode(invite);
+      setShowOrgSetup(true);
+    }
+  }, []);
+
+  const handleJoinOrg = async () => {
+    if (!userKey.trim() || !inviteCode) return;
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/orgs/join?invite_code=${inviteCode}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_key: userKey }),
+        }
+      );
+      if (!res.ok) throw new Error('Неверный код');
+      const data = await res.json();
+      localStorage.setItem('vyud_org_id', String(data.org_id));
+      localStorage.setItem('vyud_org_name', data.org_name);
+      setOrgId(data.org_id);
+      setOrgName(data.org_name);
+      setShowOrgSetup(false);
+      fetchGraph();
+    } catch {
+      alert('Неверный инвайт-код или ошибка сети.');
+    }
+  };
+
   const handleGenerateCourse = async () => {
     if (!newCourseTopic.trim()) return;
     if (backendStatus === 'error') {
@@ -268,18 +318,38 @@ function Flow() {
     }
   };
 
-  const onNodeClick = async (_: React.MouseEvent, node: FlowNode) => {
+  const onNodeClick = async (_: React.MouseEvent, node: FlowNode, regenerate = false) => {
     if (!node.data.isAvailable) return alert("Тема заблокирована!");
+
+    const id = Number(node.id);
     setSelectedTopic(node.data.label);
+    setNodeId(id);
     setIsAiLoading(true);
+    setExplanation(null);
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/explain/${encodeURIComponent(node.data.label.replace(' ✅', ''))}`);
+      const url = `${API_BASE_URL}/api/explain/${id}${regenerate ? '?regenerate=true' : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setExplanation(data.explanation);
+      setIsCached(data.cached ?? false);
     } catch {
-      setExplanation("Ошибка загрузки текста.");
+      setExplanation("Ошибка загрузки объяснения. Попробуйте ещё раз.");
+      setIsCached(false);
     } finally {
       setIsAiLoading(false);
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    if (!nodeId) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/nodes/${nodeId}/complete`, { method: 'POST' });
+      fetchGraph();
+      setSelectedTopic(null);
+    } catch {
+      alert("Не удалось сохранить прогресс.");
     }
   };
 
@@ -337,6 +407,40 @@ function Flow() {
         >
           {isGenerating ? "Генерация..." : "Создать"}
         </button>
+
+        {orgName ? (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
+            Org: <strong>{orgName}</strong>
+            <button
+              onClick={async () => {
+                const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress`);
+                const data = await res.json();
+                const code = data.invite_code;
+                const url = `${window.location.origin}${window.location.pathname}?invite=${code}`;
+                await navigator.clipboard.writeText(url);
+                alert(`Ссылка скопирована:\n${url}`);
+              }}
+              style={{
+                marginLeft: 8, fontSize: 11, padding: '2px 8px',
+                background: '#f1f5f9', border: '1px solid #e2e8f0',
+                borderRadius: 4, cursor: 'pointer',
+              }}
+            >
+              Скопировать инвайт
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowOrgSetup(true)}
+            style={{
+              marginTop: 8, width: '100%', padding: '6px 0',
+              background: '#f8fafc', border: '1px dashed #cbd5e1',
+              borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#64748b',
+            }}
+          >
+            + Создать организацию
+          </button>
+        )}
       </div>
 
       {/* Top-right: health status panel */}
@@ -351,10 +455,129 @@ function Flow() {
 
       {/* Topic explanation panel */}
       {selectedTopic && (
-        <div style={{ position: 'absolute', top: 80, right: 20, width: 350, background: 'white', padding: 25, borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', zIndex: 100 }}>
-          <h3 style={{ marginTop: 0 }}>{selectedTopic}</h3>
-          {isAiLoading ? <p>🤖 Пишу урок...</p> : <p>{explanation}</p>}
-          <button onClick={() => setSelectedTopic(null)} style={{ width: '100%', padding: 10, background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Закрыть</button>
+        <div style={{
+          position: 'absolute', top: 80, right: 20, width: 350,
+          background: 'white', padding: 25, borderRadius: 12,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)', zIndex: 100,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: '#1e293b' }}>{selectedTopic.replace(' ✅', '')}</h3>
+            <button
+              onClick={() => setSelectedTopic(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94a3b8', lineHeight: 1 }}
+            >✕</button>
+          </div>
+
+          {isAiLoading ? (
+            <p style={{ color: '#64748b', fontSize: 14 }}>🤖 Думаю...</p>
+          ) : (
+            <>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: '#334155', margin: '0 0 16px' }}>
+                {explanation}
+              </p>
+              {isCached && (
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>из кэша</div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleMarkComplete}
+                  style={{
+                    flex: 1, padding: '10px 0', background: '#22c55e',
+                    color: 'white', border: 'none', borderRadius: 8,
+                    cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                  }}
+                >
+                  Понятно ✓
+                </button>
+                <button
+                  onClick={() => {
+                    if (nodeId) {
+                      const fakeNode = { id: String(nodeId), data: { label: selectedTopic, isAvailable: true } } as FlowNode;
+                      onNodeClick({} as React.MouseEvent, fakeNode, true);
+                    }
+                  }}
+                  style={{
+                    flex: 1, padding: '10px 0', background: '#f1f5f9',
+                    color: '#475569', border: 'none', borderRadius: 8,
+                    cursor: 'pointer', fontSize: 14,
+                  }}
+                >
+                  Иначе ↺
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {showOrgSetup && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: 32,
+            width: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}>
+            {inviteCode ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>Вступить в команду</h3>
+                <p style={{ color: '#64748b', fontSize: 14 }}>Введите ваш email чтобы присоединиться</p>
+                <input
+                  value={userKey}
+                  onChange={e => setUserKey(e.target.value)}
+                  placeholder="ваш@email.com"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <button
+                  onClick={handleJoinOrg}
+                  style={{ width: '100%', padding: 12, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 15 }}
+                >
+                  Присоединиться
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0 }}>Создать организацию</h3>
+                <input
+                  placeholder="Название компании"
+                  id="org-name-input"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 8, boxSizing: 'border-box' }}
+                />
+                <input
+                  value={userKey}
+                  onChange={e => setUserKey(e.target.value)}
+                  placeholder="Ваш email (менеджер)"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <button
+                  onClick={async () => {
+                    const nameInput = document.getElementById('org-name-input') as HTMLInputElement;
+                    if (!nameInput.value.trim() || !userKey.trim()) return;
+                    const res = await fetch(`${API_BASE_URL}/api/orgs`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: nameInput.value, manager_key: userKey }),
+                    });
+                    const data = await res.json();
+                    localStorage.setItem('vyud_org_id', String(data.org_id));
+                    localStorage.setItem('vyud_org_name', data.org_name);
+                    setOrgId(data.org_id);
+                    setOrgName(data.org_name);
+                    setShowOrgSetup(false);
+                  }}
+                  style={{ width: '100%', padding: 12, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 15 }}
+                >
+                  Создать
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setShowOrgSetup(false)}
+              style={{ width: '100%', marginTop: 8, padding: 10, background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+            >
+              Отмена
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, Boolean, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, Boolean, JSON, DateTime
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.sql import func
 from app.db.base import Base
 
 class KnowledgeNode(Base):
@@ -29,3 +30,12 @@ class KnowledgeEdge(Base):
 
     source_node = relationship("KnowledgeNode", foreign_keys=[source_id])
     target_node = relationship("KnowledgeNode", foreign_keys=[target_id])
+
+class NodeExplanation(Base):
+    __tablename__ = "node_explanations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    node_id = Column(Integer, ForeignKey("knowledge_nodes.id"), nullable=False, index=True)
+    explanation = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

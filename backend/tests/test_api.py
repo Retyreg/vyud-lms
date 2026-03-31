@@ -48,6 +48,7 @@ from app.db.base import Base  # noqa: E402
 import app.models.course  # noqa: E402, F401
 import app.models.knowledge  # noqa: E402, F401
 import app.main as main_module  # noqa: E402
+from app.auth.dependencies import get_telegram_user  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +75,9 @@ def override_get_db():
 
 # Patch the app's dependency so every request uses the in-memory DB
 main_module.app.dependency_overrides[main_module.get_db] = override_get_db
+
+# Bypass Telegram auth in tests — no real bot token needed
+main_module.app.dependency_overrides[get_telegram_user] = lambda: {"id": 1, "first_name": "Test"}
 
 # Also patch the module-level engine so /api/health can connect
 main_module.engine = TEST_ENGINE
@@ -112,13 +116,17 @@ class TestHealthEndpoint:
         body = CLIENT.get("/api/health").json()
         assert body["database"] == "connected"
 
-    def test_health_ai_not_configured_without_env_vars(self):
+    def test_health_ai_not_configured_without_env_vars(self, monkeypatch):
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         body = CLIENT.get("/api/health").json()
         assert body["ai_groq"] == "not_configured"
         assert body["ai_gemini"] == "not_configured"
 
-    def test_health_status_degraded_without_ai(self):
+    def test_health_status_degraded_without_ai(self, monkeypatch):
         # DB is connected but AI keys are absent -> "degraded"
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         body = CLIENT.get("/api/health").json()
         assert body["status"] == "degraded"
 
@@ -225,24 +233,55 @@ class TestCourseGenerate:
 
 
 # ===========================================================================
-# /api/explain/{topic} -- mocked AI
+# /api/explain/{node_id} -- mocked AI
 # ===========================================================================
 
 class TestExplain:
-    def test_explain_returns_explanation(self):
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
-            mock_ai.return_value = "Python -- это простой язык программирования."
-            res = CLIENT.get("/api/explain/Python")
-        assert res.status_code == 200
-        assert "explanation" in res.json()
-        assert "Python" in res.json()["explanation"]
+    def _create_node(self, db, label: str = "Python") -> int:
+        """Insert a KnowledgeNode and return its id."""
+        from app.models.knowledge import KnowledgeNode
+        node = KnowledgeNode(label=label, level=1, is_completed=False, prerequisites=[])
+        db.add(node)
+        db.commit()
+        db.refresh(node)
+        return node.id
 
-    def test_explain_url_encoded_topic(self):
+    def test_explain_returns_explanation(self):
+        from sqlalchemy.orm import Session
+        db: Session = next(override_get_db())
+        node_id = self._create_node(db)
+        db.close()
+
         with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
-            mock_ai.return_value = "React -- библиотека для UI."
-            res = CLIENT.get("/api/explain/React%20%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D1%8B")
+            mock_ai.return_value = "Python — это простой язык программирования."
+            res = CLIENT.get(f"/api/explain/{node_id}")
         assert res.status_code == 200
-        assert "explanation" in res.json()
+        body = res.json()
+        assert "explanation" in body
+        assert body["cached"] is False
+
+    def test_explain_cache_hit_returns_cached_true(self):
+        from sqlalchemy.orm import Session
+        db: Session = next(override_get_db())
+        node_id = self._create_node(db, label="React")
+        db.close()
+
+        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+            mock_ai.return_value = "React — библиотека для UI."
+            CLIENT.get(f"/api/explain/{node_id}")          # first call — writes cache
+            res = CLIENT.get(f"/api/explain/{node_id}")    # second call — cache hit
+
+        body = res.json()
+        assert res.status_code == 200
+        assert body["cached"] is True
+
+    def test_explain_unknown_node_returns_404(self):
+        res = CLIENT.get("/api/explain/999999")
+        assert res.status_code == 404
+
+    def test_explain_non_integer_node_id_returns_422(self):
+        res = CLIENT.get("/api/explain/not-a-number")
+        assert res.status_code == 422
 
 
 # ===========================================================================

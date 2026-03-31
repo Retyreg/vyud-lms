@@ -8,6 +8,7 @@ class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     lessons = relationship("Lesson", back_populates="course")
 
 class Lesson(Base):

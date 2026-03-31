@@ -6,9 +6,9 @@ sqlalchemy
 psycopg2-binary
 pydantic
 python-dotenv
+alembic
 
 # Testing
 pytest
 pytest-asyncio
 anyio[trio]
-alembic
