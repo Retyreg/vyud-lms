@@ -136,12 +136,13 @@ class TestTelegramAuthDependency:
         # Restore bypass so other test modules are unaffected
         main_module.app.dependency_overrides[get_telegram_user] = lambda: _TEST_USER
 
-    def test_missing_init_data_header_returns_503_or_401(self):
-        """Without X-Init-Data header and no bot token configured → 503."""
-        # In test env TELEGRAM_BOT_TOKEN is unset → dependency raises 503
+    def test_missing_init_data_header_allows_browser_access(self):
+        """Without X-Init-Data header, browser users are allowed as anonymous."""
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)
         res = _AUTH_CLIENT.post("/api/courses/generate", json={"topic": "x"})
-        assert res.status_code == 503
+        # Auth passes (anonymous); endpoint may fail for other reasons (AI unavailable)
+        # but must NOT return 401 or 503 from auth layer
+        assert res.status_code not in (401, 503)
 
     def test_invalid_init_data_returns_401(self, monkeypatch):
         """With bot token set but invalid initData → 401."""
