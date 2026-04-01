@@ -39,6 +39,19 @@ interface FlowNode {
   data: { label: string; isAvailable: boolean };
 }
 
+interface MemberProgress {
+  user_key: string;
+  completed_count: number;
+  total_count: number;
+  percent: number;
+}
+
+interface DashboardData {
+  org_name: string;
+  invite_code: string;
+  members: MemberProgress[];
+}
+
 function HealthPanel({ health, onRefresh }: { health: HealthInfo | null; onRefresh: () => void }) {
   const [open, setOpen] = useState(false);
 
@@ -159,6 +172,9 @@ function Flow() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [isPdfUploading, setIsPdfUploading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -173,6 +189,21 @@ function Flow() {
   const [wizardOrgId, setWizardOrgId] = useState<number | null>(null);
   const [isWizardGenerating, setIsWizardGenerating] = useState(false);
   const wizardPdfInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchDashboard = useCallback(async () => {
+    if (!orgId) return;
+    setIsDashboardLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress`);
+      if (res.ok) {
+        setDashboardData(await res.json());
+      }
+    } catch {
+      // best-effort; ignore failures
+    } finally {
+      setIsDashboardLoading(false);
+    }
+  }, [orgId]);
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -623,6 +654,16 @@ function Flow() {
             >
               Скопировать инвайт
             </button>
+            <button
+              onClick={() => { setShowDashboard(true); fetchDashboard(); }}
+              style={{
+                marginLeft: 6, fontSize: 11, padding: '2px 8px',
+                background: '#eff6ff', border: '1px solid #bfdbfe',
+                borderRadius: 4, cursor: 'pointer',
+              }}
+            >
+              📊 Дашборд
+            </button>
           </div>
         ) : (
           <button
@@ -745,6 +786,103 @@ function Flow() {
           boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
         }}>
           {toast}
+        </div>
+      )}
+
+      {showDashboard && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: 32,
+            width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)', position: 'relative',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18, color: '#1e293b' }}>
+                📊 Прогресс команды{dashboardData ? ` — ${dashboardData.org_name}` : ''}
+              </h2>
+              <button
+                onClick={() => setShowDashboard(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94a3b8', lineHeight: 1 }}
+              >✕</button>
+            </div>
+
+            {dashboardData && (
+              <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  flex: 1, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
+                  padding: '8px 12px', fontSize: 12, color: '#334155', wordBreak: 'break-all',
+                }}>
+                  {`${window.location.origin}${window.location.pathname}?invite=${dashboardData.invite_code}`}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?invite=${dashboardData!.invite_code}`);
+                    showToast('✅ Ссылка скопирована!');
+                  }}
+                  style={{
+                    padding: '8px 12px', background: '#f1f5f9', border: '1px solid #e2e8f0',
+                    borderRadius: 8, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap',
+                  }}
+                >📋 Копировать</button>
+              </div>
+            )}
+
+            <button
+              onClick={fetchDashboard}
+              disabled={isDashboardLoading}
+              style={{
+                marginBottom: 16, padding: '6px 14px', background: '#f1f5f9',
+                border: '1px solid #e2e8f0', borderRadius: 8,
+                cursor: isDashboardLoading ? 'not-allowed' : 'pointer', fontSize: 13, color: '#475569',
+              }}
+            >
+              {isDashboardLoading ? '⏳ Загрузка...' : '🔄 Обновить'}
+            </button>
+
+            {isDashboardLoading && !dashboardData ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#64748b', fontSize: 14 }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+                Загрузка данных...
+              </div>
+            ) : dashboardData && dashboardData.members.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#64748b', fontSize: 14 }}>
+                Пока никто не вступил. Поделитесь инвайт-ссылкой!
+              </div>
+            ) : dashboardData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {dashboardData.members.map(member => {
+                  const barColor = member.percent <= 30
+                    ? '#ef4444'
+                    : member.percent <= 70
+                    ? '#f59e0b'
+                    : '#22c55e';
+                  return (
+                    <div key={member.user_key} style={{
+                      padding: '12px 16px', background: '#f8fafc',
+                      border: '1px solid #e2e8f0', borderRadius: 10,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{member.user_key}</span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>
+                          {member.completed_count} / {member.total_count} узлов ({member.percent.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <div style={{ background: '#e2e8f0', borderRadius: 999, height: 8, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${member.percent}%`, height: '100%',
+                          background: barColor, borderRadius: 999,
+                          transition: 'width 0.4s ease',
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
 
