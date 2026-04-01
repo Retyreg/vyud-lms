@@ -157,8 +157,11 @@ function Flow() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading');
   const [hasNodes, setHasNodes] = useState(false);
   const [health, setHealth] = useState<HealthInfo | null>(null);
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -365,6 +368,44 @@ function Flow() {
     }
   };
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handlePdfUpload = async (file: File) => {
+    const savedOrgId = localStorage.getItem('vyud_org_id');
+    if (!savedOrgId) {
+      alert("Сначала создайте или вступите в организацию");
+      return;
+    }
+    setIsPdfUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (newCourseTopic.trim()) {
+        formData.append('topic', newCourseTopic.trim());
+      }
+      const res = await fetch(`${API_BASE_URL}/api/orgs/${savedOrgId}/courses/upload-pdf`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Ошибка: ${error.detail || "Что-то пошло не так"}`);
+        return;
+      }
+      const data = await res.json();
+      fetchGraph();
+      showToast(`✅ Граф создан из PDF! ${data.node_count} узлов`);
+    } catch {
+      alert("Ошибка сети при загрузке PDF.");
+    } finally {
+      setIsPdfUploading(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
   const onNodeClick = async (_: React.MouseEvent, node: FlowNode, regenerate = false) => {
     if (!node.data.isAvailable) return alert("Тема заблокирована!");
 
@@ -454,6 +495,23 @@ function Flow() {
         >
           {isGenerating ? "Генерация..." : "Создать"}
         </button>
+        <button
+          onClick={() => pdfInputRef.current?.click()}
+          disabled={isPdfUploading}
+          style={{ marginLeft: 8, padding: '8px 12px', background: isPdfUploading ? '#94a3b8' : '#f59e0b', color: 'white', border: 'none', borderRadius: 6, cursor: isPdfUploading ? 'not-allowed' : 'pointer' }}
+        >
+          📄 PDF
+        </button>
+        <input
+          ref={pdfInputRef}
+          type="file"
+          accept=".pdf"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handlePdfUpload(file);
+          }}
+        />
 
         {orgName ? (
           <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
@@ -575,6 +633,31 @@ function Flow() {
           )}
         </div>
       )}
+      {isPdfUploading && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: '32px 48px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)', fontSize: 18, color: '#1e293b',
+          }}>
+            📄 Обрабатываю PDF...
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: '#16a34a', color: 'white', padding: '12px 24px',
+          borderRadius: 10, fontSize: 15, zIndex: 300,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+        }}>
+          {toast}
+        </div>
+      )}
+
       {showOrgSetup && (
         <div style={{
           position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
