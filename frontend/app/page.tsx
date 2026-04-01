@@ -163,6 +163,17 @@ function Flow() {
   const attemptRef = useRef(0);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
+  // Wizard state
+  const [wizardStep, setWizardStep] = useState(0); // 0=hidden, 1|2|3=steps
+  const [wizardOrgName, setWizardOrgName] = useState('');
+  const [wizardEmail, setWizardEmail] = useState('');
+  const [wizardTopic, setWizardTopic] = useState('');
+  const [wizardMode, setWizardMode] = useState<'topic' | 'pdf'>('topic');
+  const [wizardInviteCode, setWizardInviteCode] = useState('');
+  const [wizardOrgId, setWizardOrgId] = useState<number | null>(null);
+  const [isWizardGenerating, setIsWizardGenerating] = useState(false);
+  const wizardPdfInputRef = useRef<HTMLInputElement>(null);
+
   const fetchHealth = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/health`);
@@ -310,6 +321,8 @@ function Flow() {
     } else if (invite) {
       setInviteCode(invite);
       setShowOrgSetup(true);
+    } else {
+      setWizardStep(1);
     }
   }, []);
 
@@ -403,6 +416,83 @@ function Flow() {
     } finally {
       setIsPdfUploading(false);
       if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
+  const handleWizardCreateOrg = async () => {
+    if (!wizardOrgName.trim() || !wizardEmail.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orgs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: wizardOrgName, manager_key: wizardEmail }),
+      });
+      if (!res.ok) { alert('Ошибка создания организации'); return; }
+      const data = await res.json();
+      localStorage.setItem('vyud_org_id', String(data.org_id));
+      localStorage.setItem('vyud_org_name', data.org_name);
+      localStorage.setItem('vyud_user_key', wizardEmail);
+      setOrgId(data.org_id);
+      setOrgName(data.org_name);
+      setUserKey(wizardEmail);
+      setWizardOrgId(data.org_id);
+      setWizardStep(2);
+    } catch {
+      alert('Ошибка сети. Попробуйте позже.');
+    }
+  };
+
+  const handleWizardGenerateCourse = async () => {
+    if (!wizardTopic.trim() || !wizardOrgId) return;
+    setIsWizardGenerating(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orgs/${wizardOrgId}/courses/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: wizardTopic }),
+      });
+      if (!res.ok) { alert('Ошибка генерации курса'); return; }
+      const progressRes = await fetch(`${API_BASE_URL}/api/orgs/${wizardOrgId}/progress`);
+      if (progressRes.ok) {
+        const progressData = await progressRes.json();
+        setWizardInviteCode(progressData.invite_code ?? '');
+      }
+      fetchGraph();
+      setWizardStep(3);
+    } catch {
+      alert('Ошибка сети.');
+    } finally {
+      setIsWizardGenerating(false);
+    }
+  };
+
+  const handleWizardPdfUpload = async (file: File) => {
+    if (!wizardOrgId) return;
+    setIsWizardGenerating(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE_URL}/api/orgs/${wizardOrgId}/courses/upload-pdf`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Ошибка: ${error.detail || 'Что-то пошло не так'}`);
+        return;
+      }
+      const progressRes = await fetch(`${API_BASE_URL}/api/orgs/${wizardOrgId}/progress`);
+      if (progressRes.ok) {
+        const progressData = await progressRes.json();
+        setWizardInviteCode(progressData.invite_code ?? '');
+      }
+      fetchGraph();
+      setWizardStep(3);
+    } catch {
+      alert('Ошибка сети при загрузке PDF.');
+    } finally {
+      setIsWizardGenerating(false);
+      if (wizardPdfInputRef.current) wizardPdfInputRef.current.value = '';
     }
   };
 
@@ -655,6 +745,189 @@ function Flow() {
           boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
         }}>
           {toast}
+        </div>
+      )}
+
+      {wizardStep > 0 && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: 32,
+            width: '100%', maxWidth: 480,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)', position: 'relative',
+          }}>
+            {/* Progress dots */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 24 }}>
+              {[1, 2, 3].map(s => (
+                <div key={s} style={{
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: s <= wizardStep ? '#3b82f6' : '#e2e8f0',
+                }} />
+              ))}
+            </div>
+
+            {/* Close button (step 1 only) */}
+            {wizardStep === 1 && (
+              <button
+                onClick={() => setWizardStep(0)}
+                style={{
+                  position: 'absolute', top: 16, right: 16,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 18, color: '#94a3b8', lineHeight: 1,
+                }}
+              >✕</button>
+            )}
+
+            {/* Step 1: Create org */}
+            {wizardStep === 1 && (
+              <>
+                <h2 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: 22, textAlign: 'center' }}>👋 Добро пожаловать в VYUD LMS</h2>
+                <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 14, textAlign: 'center' }}>Создайте организацию для вашей команды</p>
+                <input
+                  value={wizardOrgName}
+                  onChange={e => setWizardOrgName(e.target.value)}
+                  placeholder="Название компании *"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10, boxSizing: 'border-box', fontSize: 14 }}
+                />
+                <input
+                  value={wizardEmail}
+                  onChange={e => setWizardEmail(e.target.value)}
+                  placeholder="Email менеджера *"
+                  type="email"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 20, boxSizing: 'border-box', fontSize: 14 }}
+                />
+                <button
+                  onClick={handleWizardCreateOrg}
+                  disabled={!wizardOrgName.trim() || !wizardEmail.trim()}
+                  style={{
+                    width: '100%', padding: 12, fontSize: 15, fontWeight: 600,
+                    background: !wizardOrgName.trim() || !wizardEmail.trim() ? '#94a3b8' : '#3b82f6',
+                    color: 'white', border: 'none', borderRadius: 8,
+                    cursor: !wizardOrgName.trim() || !wizardEmail.trim() ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Создать →
+                </button>
+              </>
+            )}
+
+            {/* Step 2: Create first course */}
+            {wizardStep === 2 && (
+              <>
+                <h2 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: 22, textAlign: 'center' }}>📚 Создайте первый курс</h2>
+                <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 14, textAlign: 'center' }}>Загрузите PDF или введите тему вручную</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <button
+                    onClick={() => setWizardMode('topic')}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
+                      background: wizardMode === 'topic' ? '#3b82f6' : '#f1f5f9',
+                      color: wizardMode === 'topic' ? 'white' : '#64748b',
+                      cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                    }}
+                  >✍️ По теме</button>
+                  <button
+                    onClick={() => setWizardMode('pdf')}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
+                      background: wizardMode === 'pdf' ? '#3b82f6' : '#f1f5f9',
+                      color: wizardMode === 'pdf' ? 'white' : '#64748b',
+                      cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                    }}
+                  >📄 Из PDF</button>
+                </div>
+                {wizardMode === 'topic' ? (
+                  <>
+                    <input
+                      value={wizardTopic}
+                      onChange={e => setWizardTopic(e.target.value)}
+                      placeholder="Тема курса (напр. Python, React...)"
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, boxSizing: 'border-box', fontSize: 14 }}
+                    />
+                    <button
+                      onClick={handleWizardGenerateCourse}
+                      disabled={isWizardGenerating || !wizardTopic.trim()}
+                      style={{
+                        width: '100%', padding: 12, fontSize: 15, fontWeight: 600,
+                        background: isWizardGenerating || !wizardTopic.trim() ? '#94a3b8' : '#3b82f6',
+                        color: 'white', border: 'none', borderRadius: 8,
+                        cursor: isWizardGenerating || !wizardTopic.trim() ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isWizardGenerating ? '⏳ Генерирую...' : 'Сгенерировать'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => wizardPdfInputRef.current?.click()}
+                      disabled={isWizardGenerating}
+                      style={{
+                        width: '100%', padding: 12, fontSize: 15, fontWeight: 600,
+                        background: isWizardGenerating ? '#94a3b8' : '#f59e0b',
+                        color: 'white', border: 'none', borderRadius: 8,
+                        cursor: isWizardGenerating ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isWizardGenerating ? '⏳ Загружаю...' : '📄 Выбрать PDF (до 20MB)'}
+                    </button>
+                    <input
+                      ref={wizardPdfInputRef}
+                      type="file"
+                      accept=".pdf"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) handleWizardPdfUpload(file);
+                      }}
+                    />
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Step 3: Invite team */}
+            {wizardStep === 3 && (
+              <>
+                <h2 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: 22, textAlign: 'center' }}>🎉 Курс создан!</h2>
+                <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 14, textAlign: 'center' }}>
+                  Отправьте эту ссылку сотрудникам — они сразу попадут в курс
+                </p>
+                <div style={{
+                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
+                  padding: '10px 12px', marginBottom: 16, fontSize: 13, color: '#334155',
+                  wordBreak: 'break-all',
+                }}>
+                  {`${window.location.origin}?invite=${wizardInviteCode}`}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}?invite=${wizardInviteCode}`);
+                    showToast('✅ Ссылка скопирована!');
+                  }}
+                  style={{
+                    width: '100%', padding: 12, fontSize: 15, fontWeight: 600,
+                    background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8,
+                    cursor: 'pointer', marginBottom: 10,
+                  }}
+                >
+                  📋 Скопировать ссылку
+                </button>
+                <button
+                  onClick={() => setWizardStep(0)}
+                  style={{
+                    width: '100%', padding: 12, fontSize: 14,
+                    background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Открыть граф →
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
