@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import os
 import time
@@ -715,6 +716,135 @@ def get_due_nodes(org_id: int, user_key: str, db: Session = Depends(get_db)):
     due_ids = [nid for nid in node_ids if nid not in reviewed_ids]
 
     return {"due_node_ids": due_ids}
+
+
+class ROIResponse(BaseModel):
+    org_name: str
+    total_members: int
+    active_members: int
+    total_nodes: int
+    avg_completion_rate: float
+    avg_days_to_first_completion: float | None
+    fastest_member: str | None
+    total_reviews: int
+    avg_streak: float
+    onboarding_efficiency_score: float
+    summary: str
+
+
+@app.get("/api/orgs/{org_id}/roi", response_model=ROIResponse)
+def get_org_roi(org_id: int, db: Session = Depends(get_db)):
+    """ROI-метрики организации для менеджера/CXO."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    total_members = len(members)
+    member_keys = [m.user_key for m in members]
+    member_joined = {m.user_key: m.joined_at for m in members}
+
+    # Последний курс организации
+    course = db.query(Course).filter(
+        Course.org_id == org_id
+    ).order_by(Course.id.desc()).first()
+    if not course:
+        course = db.query(Course).filter(
+            Course.org_id == None  # noqa: E711
+        ).order_by(Course.id.desc()).first()
+
+    total_nodes = 0
+    node_ids: list[int] = []
+    if course:
+        nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
+        total_nodes = len(nodes)
+        node_ids = [n.id for n in nodes]
+
+    # SR-прогресс всех участников по узлам курса
+    sr_records = []
+    if member_keys and node_ids:
+        sr_records = db.query(NodeSRProgress).filter(
+            NodeSRProgress.user_key.in_(member_keys),
+            NodeSRProgress.node_id.in_(node_ids),
+        ).all()
+
+    # active_members: хоть раз делали review
+    active_keys = {r.user_key for r in sr_records}
+    active_members = len(active_keys)
+
+    # avg_completion_rate: среднее % охваченных узлов по всем участникам
+    from collections import defaultdict
+    reviewed_per_user: dict[str, set[int]] = defaultdict(set)
+    for r in sr_records:
+        reviewed_per_user[r.user_key].add(r.node_id)
+
+    if total_nodes > 0 and member_keys:
+        rates = [len(reviewed_per_user[k]) / total_nodes * 100 for k in member_keys]
+        avg_completion_rate = round(sum(rates) / len(rates), 1)
+    else:
+        avg_completion_rate = 0.0
+
+    # total_reviews
+    total_reviews = sum(r.total_reviews for r in sr_records)
+
+    # avg_days_to_first_completion
+    days_list: list[float] = []
+    for key in member_keys:
+        user_sr = [r for r in sr_records if r.user_key == key and r.last_reviewed is not None]
+        if user_sr:
+            first_review = min(r.last_reviewed for r in user_sr)  # type: ignore[type-var]
+            joined = member_joined.get(key)
+            if joined and first_review:
+                delta = (first_review - joined).total_seconds() / 86400
+                if delta >= 0:
+                    days_list.append(delta)
+    avg_days_to_first_completion = round(sum(days_list) / len(days_list), 1) if days_list else None
+
+    # fastest_member: участник с наибольшим количеством просмотренных узлов
+    fastest_member: str | None = None
+    if reviewed_per_user:
+        fastest_member = max(reviewed_per_user, key=lambda k: len(reviewed_per_user[k]))
+
+    # avg_streak
+    streaks = (
+        db.query(UserStreak).filter(UserStreak.user_key.in_(member_keys)).all()
+        if member_keys else []
+    )
+    streak_map = {s.user_key: s.current_streak for s in streaks}
+    avg_streak = (
+        round(sum(streak_map.get(k, 0) for k in member_keys) / len(member_keys), 1)
+        if member_keys else 0.0
+    )
+
+    # onboarding_efficiency_score: 0-100
+    raw_score = avg_completion_rate * (1 + math.log(total_reviews + 1) / 10)
+    onboarding_efficiency_score = round(min(100.0, max(0.0, raw_score)), 1)
+
+    # summary (статический, без AI)
+    completion_int = round(avg_completion_rate)
+    if avg_completion_rate >= 80:
+        summary = f"Команда освоила курс на {completion_int}%. Онбординг прошёл успешно."
+    elif avg_completion_rate >= 50:
+        summary = (
+            f"Команда на полпути — {completion_int}% завершено. "
+            f"{active_members} из {total_members} участников активны."
+        )
+    else:
+        summary = f"Онбординг в процессе. {active_members} из {total_members} участников начали обучение."
+
+    return ROIResponse(
+        org_name=org.name,
+        total_members=total_members,
+        active_members=active_members,
+        total_nodes=total_nodes,
+        avg_completion_rate=avg_completion_rate,
+        avg_days_to_first_completion=avg_days_to_first_completion,
+        fastest_member=fastest_member,
+        total_reviews=total_reviews,
+        avg_streak=avg_streak,
+        onboarding_efficiency_score=onboarding_efficiency_score,
+        summary=summary,
+    )
 
 
 @app.post("/api/orgs/{org_id}/courses/upload-pdf")
