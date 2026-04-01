@@ -5,7 +5,7 @@ import time
 import httpx
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from app.auth.dependencies import get_telegram_user
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -69,6 +69,8 @@ from app.models.course import Course
 from app.models.knowledge import KnowledgeNode, KnowledgeEdge, NodeExplanation, NodeSRProgress
 from app.services.sm2 import calculate_next_interval, get_mastery_level, is_due, next_review_date
 from app.models.org import Organization, OrgMember
+from app.models.document import DocumentChunk
+from app.services.pdf import extract_text_from_pdf, chunk_text, embed_chunks, build_graph_from_pdf
 
 # Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
 @asynccontextmanager
@@ -669,3 +671,88 @@ def get_due_nodes(org_id: int, user_key: str, db: Session = Depends(get_db)):
     due_ids = [nid for nid in node_ids if nid not in reviewed_ids]
 
     return {"due_node_ids": due_ids}
+
+
+@app.post("/api/orgs/{org_id}/courses/upload-pdf")
+async def upload_pdf(
+    org_id: int,
+    file: UploadFile = File(...),
+    topic: str = Form(default=""),
+    db: Session = Depends(get_db),
+):
+    """Генерация графа знаний из загруженного PDF-файла."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    file_bytes = await file.read()
+
+    try:
+        pdf_text = extract_text_from_pdf(file_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {e}")
+
+    if not pdf_text.strip():
+        raise HTTPException(status_code=400, detail="PDF is empty or contains no extractable text")
+
+    if not topic:
+        topic = pdf_text[:100].strip()
+
+    chunks = chunk_text(pdf_text)
+
+    try:
+        embeddings = await embed_chunks(chunks)
+    except Exception as e:
+        logger.error(f"Embedding failed: {e}")
+        embeddings = [None] * len(chunks)
+
+    try:
+        nodes_data = await build_graph_from_pdf(chunks, topic, call_ai)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    try:
+        new_course = Course(title=topic, description=f"Курс: {topic}", org_id=org_id)
+        db.add(new_course)
+        db.flush()
+
+        title_to_id = {}
+        created_nodes = []
+        for node_data in nodes_data:
+            new_node = KnowledgeNode(
+                label=node_data["title"],
+                description=node_data.get("description", ""),
+                level=1,
+                course_id=new_course.id,
+                prerequisites=[],
+            )
+            db.add(new_node)
+            db.flush()
+            title_to_id[node_data["title"]] = new_node.id
+            created_nodes.append((new_node, node_data.get("list_of_prerequisite_titles", [])))
+
+        for node, prereq_titles in created_nodes:
+            new_prereq_ids = []
+            for p_title in prereq_titles:
+                if p_title in title_to_id:
+                    p_id = title_to_id[p_title]
+                    new_prereq_ids.append(p_id)
+                    db.add(KnowledgeEdge(source_id=p_id, target_id=node.id))
+            node.prerequisites = new_prereq_ids
+
+        for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            db.add(DocumentChunk(
+                course_id=new_course.id,
+                chunk_text=chunk,
+                chunk_index=idx,
+                embedding=embedding,
+            ))
+
+        db.commit()
+        return {"status": "ok", "course_id": new_course.id, "node_count": len(created_nodes)}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

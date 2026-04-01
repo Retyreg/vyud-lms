@@ -7,6 +7,10 @@ psycopg2-binary
 pydantic
 python-dotenv
 alembic
+pymupdf
+pgvector
+python-multipart
+openai
 
 # Testing
 pytest
