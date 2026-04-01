@@ -146,6 +146,7 @@ function Flow() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [nodeId, setNodeId] = useState<number | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const [dueNodeIds, setDueNodeIds] = useState<Set<number>>(new Set());
   const [orgId, setOrgId] = useState<number | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [showOrgSetup, setShowOrgSetup] = useState(false);
@@ -167,6 +168,18 @@ function Flow() {
       }
     } catch {
       // health fetch is best-effort; ignore failures
+    }
+  }, []);
+
+  const fetchDueNodes = useCallback(async (oId: number, uKey: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orgs/${oId}/due-nodes?user_key=${encodeURIComponent(uKey)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDueNodeIds(new Set(data.due_node_ids as number[]));
+      }
+    } catch {
+      // best-effort; ignore failures
     }
   }, []);
 
@@ -206,13 +219,25 @@ function Flow() {
 
       if (data?.nodes?.length > 0) {
         setHasNodes(true);
+        const savedUserKey = localStorage.getItem('vyud_user_key') ?? '';
+        const currentOrgIdNum = currentOrgId ? Number(currentOrgId) : null;
+
+        // Fetch due nodes for SR highlighting (best-effort, non-blocking)
+        if (currentOrgIdNum && savedUserKey) {
+          fetchDueNodes(currentOrgIdNum, savedUserKey);
+        }
+
         const formattedNodes = data.nodes.map((node: ApiNode, idx: number) => ({
           id: String(node.id),
           position: { x: idx * 250, y: (node.level || 1) * 150 },
           data: { label: node.is_completed ? `${node.label} ✅` : node.label, isAvailable: node.is_available },
           style: {
             background: node.is_completed ? '#4ADE80' : node.is_available ? '#fff' : '#f3f4f6',
-            border: node.is_available ? '2px solid #3b82f6' : '2px dashed #ccc',
+            border: node.is_completed
+              ? '2px solid #16a34a'
+              : node.is_available
+              ? '2px solid #3b82f6'
+              : '2px dashed #ccc',
             borderRadius: '12px', width: 200, padding: '10px', textAlign: 'center' as const,
           },
         }));
@@ -249,11 +274,32 @@ function Flow() {
     };
   }, [fetchGraph]);
 
+  // Re-apply yellow border to due nodes after dueNodeIds updates
+  useEffect(() => {
+    if (dueNodeIds.size === 0) return;
+    setNodes(prev => prev.map(n => {
+      const id = Number(n.id);
+      if (!dueNodeIds.has(id)) return n;
+      const isCompleted = (n.data.label as string).endsWith('✅');
+      if (isCompleted) return n; // completed nodes keep green
+      return {
+        ...n,
+        style: {
+          ...n.style,
+          border: '2px solid #f59e0b',  // yellow = due for review
+        },
+      };
+    }));
+  }, [dueNodeIds, setNodes]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const invite = params.get('invite');
     const savedOrgId = localStorage.getItem('vyud_org_id');
     const savedOrgName = localStorage.getItem('vyud_org_name');
+
+    const savedUserKey = localStorage.getItem('vyud_user_key');
+    if (savedUserKey) setUserKey(savedUserKey);
 
     if (savedOrgId) {
       setOrgId(Number(savedOrgId));
@@ -279,6 +325,7 @@ function Flow() {
       const data = await res.json();
       localStorage.setItem('vyud_org_id', String(data.org_id));
       localStorage.setItem('vyud_org_name', data.org_name);
+      localStorage.setItem('vyud_user_key', userKey);
       setOrgId(data.org_id);
       setOrgName(data.org_name);
       setShowOrgSetup(false);
@@ -478,33 +525,52 @@ function Flow() {
               {isCached && (
                 <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>из кэша</div>
               )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={handleMarkComplete}
-                  style={{
-                    flex: 1, padding: '10px 0', background: '#22c55e',
-                    color: 'white', border: 'none', borderRadius: 8,
-                    cursor: 'pointer', fontSize: 14, fontWeight: 500,
-                  }}
-                >
-                  Понятно ✓
-                </button>
-                <button
-                  onClick={() => {
-                    if (nodeId) {
-                      const fakeNode = { id: String(nodeId), data: { label: selectedTopic, isAvailable: true } } as FlowNode;
-                      onNodeClick({} as React.MouseEvent, fakeNode, true);
-                    }
-                  }}
-                  style={{
-                    flex: 1, padding: '10px 0', background: '#f1f5f9',
-                    color: '#475569', border: 'none', borderRadius: 8,
-                    cursor: 'pointer', fontSize: 14,
-                  }}
-                >
-                  Иначе ↺
-                </button>
+              <div style={{ marginBottom: 8, fontSize: 12, color: '#64748b' }}>Как усвоил?</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                {([
+                  { quality: 0, label: '😕 Не помню', bg: '#fef2f2', color: '#b91c1c' },
+                  { quality: 1, label: '🤔 С трудом', bg: '#fffbeb', color: '#b45309' },
+                  { quality: 2, label: '🙂 Помню',    bg: '#f0fdf4', color: '#15803d' },
+                  { quality: 3, label: '😊 Легко',    bg: '#eff6ff', color: '#1d4ed8' },
+                ] as const).map(({ quality, label, bg, color }) => (
+                  <button
+                    key={quality}
+                    onClick={async () => {
+                      if (!nodeId) return;
+                      const uKey = localStorage.getItem('vyud_user_key') ?? 'anonymous';
+                      await fetch(`${API_BASE_URL}/api/nodes/${nodeId}/review`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_key: uKey, quality }),
+                      });
+                      fetchGraph();
+                      setSelectedTopic(null);
+                    }}
+                    style={{
+                      padding: '8px 4px', background: bg, color,
+                      border: `1px solid ${color}33`, borderRadius: 8,
+                      cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
+              <button
+                onClick={() => {
+                  if (nodeId) {
+                    const fakeNode = { id: String(nodeId), data: { label: selectedTopic, isAvailable: true } } as FlowNode;
+                    onNodeClick({} as React.MouseEvent, fakeNode, true);
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '8px 0', background: '#f1f5f9',
+                  color: '#475569', border: 'none', borderRadius: 8,
+                  cursor: 'pointer', fontSize: 13,
+                }}
+              >
+                Иначе ↺
+              </button>
             </>
           )}
         </div>
@@ -561,6 +627,7 @@ function Flow() {
                     const data = await res.json();
                     localStorage.setItem('vyud_org_id', String(data.org_id));
                     localStorage.setItem('vyud_org_name', data.org_name);
+                    localStorage.setItem('vyud_user_key', userKey);
                     setOrgId(data.org_id);
                     setOrgName(data.org_name);
                     setShowOrgSetup(false);

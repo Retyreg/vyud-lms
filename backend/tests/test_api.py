@@ -47,6 +47,7 @@ from app.db.base import Base  # noqa: E402
 # Models must be imported so their metadata is registered before create_all
 import app.models.course  # noqa: E402, F401
 import app.models.knowledge  # noqa: E402, F401
+import app.models.org  # noqa: E402, F401
 import app.main as main_module  # noqa: E402
 from app.auth.dependencies import get_telegram_user  # noqa: E402
 
@@ -282,6 +283,76 @@ class TestExplain:
     def test_explain_non_integer_node_id_returns_422(self):
         res = CLIENT.get("/api/explain/not-a-number")
         assert res.status_code == 422
+
+
+# ===========================================================================
+# SM-2 spaced repetition endpoints
+# ===========================================================================
+
+class TestSM2:
+    def _create_node(self, label: str = "SM2Test") -> int:
+        from sqlalchemy.orm import Session
+        from app.models.knowledge import KnowledgeNode
+        db: Session = next(override_get_db())
+        node = KnowledgeNode(label=label, level=1, is_completed=False, prerequisites=[])
+        db.add(node)
+        db.commit()
+        db.refresh(node)
+        node_id = node.id
+        db.close()
+        return node_id
+
+    def test_review_returns_200(self):
+        node_id = self._create_node("ReviewOk")
+        res = CLIENT.post(f"/api/nodes/{node_id}/review", json={"user_key": "test@test.com", "quality": 3})
+        assert res.status_code == 200
+        body = res.json()
+        assert "next_review_days" in body
+        assert "mastery" in body
+
+    def test_review_invalid_quality_returns_422(self):
+        node_id = self._create_node("ReviewBadQ")
+        res = CLIENT.post(f"/api/nodes/{node_id}/review", json={"user_key": "test@test.com", "quality": 9})
+        assert res.status_code == 422
+
+    def test_review_unknown_node_returns_404(self):
+        res = CLIENT.post("/api/nodes/999999/review", json={"user_key": "x", "quality": 2})
+        assert res.status_code == 404
+
+    def test_review_quality_0_does_not_complete_node(self):
+        node_id = self._create_node("ReviewFail")
+        CLIENT.post(f"/api/nodes/{node_id}/review", json={"user_key": "fail@test.com", "quality": 0})
+        from sqlalchemy.orm import Session
+        from app.models.knowledge import KnowledgeNode
+        db: Session = next(override_get_db())
+        node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+        assert node.is_completed is False
+        db.close()
+
+    def test_review_quality_2_completes_node(self):
+        """quality=2 → q=4 → correct recall → node marked complete."""
+        node_id = self._create_node("ReviewPass")
+        res = CLIENT.post(f"/api/nodes/{node_id}/review", json={"user_key": "pass@test.com", "quality": 2})
+        assert res.status_code == 200
+        # Verify via sr-status that correct_reviews > 0 (i.e. recall was counted as correct)
+        sr = CLIENT.get(f"/api/nodes/{node_id}/sr-status?user_key=pass@test.com").json()
+        assert sr["mastery"] != "новый", "Expected mastery to advance after a correct review"
+
+    def test_sr_status_new_node(self):
+        node_id = self._create_node("SRStatus")
+        res = CLIENT.get(f"/api/nodes/{node_id}/sr-status?user_key=user1")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["mastery"] == "новый"
+        assert body["is_due"] is True
+
+    def test_sr_status_after_review(self):
+        node_id = self._create_node("SRAfterReview")
+        CLIENT.post(f"/api/nodes/{node_id}/review", json={"user_key": "sr_user", "quality": 3})
+        res = CLIENT.get(f"/api/nodes/{node_id}/sr-status?user_key=sr_user")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["next_review"] is not None
 
 
 # ===========================================================================
