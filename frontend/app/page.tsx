@@ -52,6 +52,14 @@ interface DashboardData {
   members: MemberProgress[];
 }
 
+interface StreakInfo {
+  current_streak: number;
+  longest_streak: number;
+  total_days_active: number;
+  last_activity_date: string | null;
+  badge: string | null;
+}
+
 function HealthPanel({ health, onRefresh }: { health: HealthInfo | null; onRefresh: () => void }) {
   const [open, setOpen] = useState(false);
 
@@ -175,6 +183,7 @@ function Flow() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -222,6 +231,19 @@ function Flow() {
       if (res.ok) {
         const data = await res.json();
         setDueNodeIds(new Set(data.due_node_ids as number[]));
+      }
+    } catch {
+      // best-effort; ignore failures
+    }
+  }, []);
+
+  const fetchStreak = useCallback(async (uKey: string) => {
+    if (!uKey) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/streaks/${encodeURIComponent(uKey)}`);
+      if (res.ok) {
+        const data: StreakInfo = await res.json();
+        setStreakInfo(data.current_streak > 0 ? data : null);
       }
     } catch {
       // best-effort; ignore failures
@@ -344,7 +366,10 @@ function Flow() {
     const savedOrgName = localStorage.getItem('vyud_org_name');
 
     const savedUserKey = localStorage.getItem('vyud_user_key');
-    if (savedUserKey) setUserKey(savedUserKey);
+    if (savedUserKey) {
+      setUserKey(savedUserKey);
+      fetchStreak(savedUserKey);
+    }
 
     if (savedOrgId) {
       setOrgId(Number(savedOrgId));
@@ -634,6 +659,19 @@ function Flow() {
           }}
         />
 
+        {streakInfo && (
+          <div style={{ marginTop: 10, padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#c2410c' }}>
+              {streakInfo.badge
+                ? `${streakInfo.badge} · ${streakInfo.current_streak} дней`
+                : `🔥 ${streakInfo.current_streak} дней`}
+            </div>
+            <div style={{ fontSize: 11, color: '#9a3412', marginTop: 2 }}>
+              Рекорд: {streakInfo.longest_streak} дней
+            </div>
+          </div>
+        )}
+
         {orgName ? (
           <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
             Org: <strong>{orgName}</strong>
@@ -733,6 +771,7 @@ function Flow() {
                         body: JSON.stringify({ user_key: uKey, quality }),
                       });
                       fetchGraph();
+                      fetchStreak(uKey);
                       setSelectedTopic(null);
                     }}
                     style={{
