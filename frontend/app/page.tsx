@@ -52,6 +52,20 @@ interface DashboardData {
   members: MemberProgress[];
 }
 
+interface ROIData {
+  org_name: string;
+  total_members: number;
+  active_members: number;
+  total_nodes: number;
+  avg_completion_rate: number;
+  avg_days_to_first_completion: number | null;
+  fastest_member: string | null;
+  total_reviews: number;
+  avg_streak: number;
+  onboarding_efficiency_score: number;
+  summary: string;
+}
+
 interface StreakInfo {
   current_streak: number;
   longest_streak: number;
@@ -182,6 +196,7 @@ function Flow() {
   const [toast, setToast] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [roiData, setRoiData] = useState<ROIData | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -203,9 +218,15 @@ function Flow() {
     if (!orgId) return;
     setIsDashboardLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress`);
-      if (res.ok) {
-        setDashboardData(await res.json());
+      const [progressRes, roiRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress`),
+        fetch(`${API_BASE_URL}/api/orgs/${orgId}/roi`),
+      ]);
+      if (progressRes.ok) {
+        setDashboardData(await progressRes.json());
+      }
+      if (roiRes.ok) {
+        setRoiData(await roiRes.json());
       }
     } catch {
       // best-effort; ignore failures
@@ -921,6 +942,69 @@ function Flow() {
                 })}
               </div>
             ) : null}
+
+            {roiData && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>
+                  📈 ROI &amp; Аналитика
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                      {roiData.avg_completion_rate.toFixed(1)}%
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>🎯 Completion Rate</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                      {roiData.onboarding_efficiency_score.toFixed(1)} / 100
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>⚡ Efficiency Score</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                      {roiData.avg_days_to_first_completion !== null
+                        ? roiData.avg_days_to_first_completion.toFixed(1)
+                        : '—'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>📅 Ср. дней онбординга</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                      {roiData.avg_streak.toFixed(1)} дн
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>🔥 Ср. Streak</div>
+                  </div>
+                </div>
+                <div style={{
+                  background: '#eff6ff', borderLeft: '3px solid #3b82f6',
+                  borderRadius: 8, padding: '12px 16px', marginBottom: 8,
+                }}>
+                  <div style={{ fontSize: 13, color: '#1e40af', marginBottom: 10 }}>
+                    {roiData.summary}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const text = [
+                        `VYUD LMS | ${roiData.org_name} | ${new Date().toLocaleDateString('ru-RU')}`,
+                        `Команда: ${roiData.total_members} чел | Активных: ${roiData.active_members}`,
+                        `Completion Rate: ${roiData.avg_completion_rate.toFixed(1)}%`,
+                        `Efficiency Score: ${roiData.onboarding_efficiency_score.toFixed(1)}/100`,
+                        roiData.summary,
+                      ].join('\n');
+                      navigator.clipboard.writeText(text);
+                      showToast('✅ Скопировано для отчёта!');
+                    }}
+                    style={{
+                      padding: '6px 12px', background: '#dbeafe', border: '1px solid #93c5fd',
+                      borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#1d4ed8',
+                    }}
+                  >
+                    📋 Скопировать для отчёта
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
