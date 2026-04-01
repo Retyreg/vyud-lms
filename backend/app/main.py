@@ -70,7 +70,9 @@ from app.models.knowledge import KnowledgeNode, KnowledgeEdge, NodeExplanation, 
 from app.services.sm2 import calculate_next_interval, get_mastery_level, is_due, next_review_date
 from app.models.org import Organization, OrgMember
 from app.models.document import DocumentChunk
+from app.models.streak import UserStreak
 from app.services.pdf import extract_text_from_pdf, chunk_text, embed_chunks, build_graph_from_pdf
+from app.services.streak import update_streak, get_streak
 
 # Создаем таблицы при старте (в lifespan, чтобы не крашить приложение при недоступной БД)
 @asynccontextmanager
@@ -349,13 +351,19 @@ async def explain_node(node_id: int, regenerate: bool = False, db: Session = Dep
 
     return {"explanation": explanation, "cached": False}
 
+class CompleteRequest(BaseModel):
+    user_key: str = ""
+
+
 @app.post("/api/nodes/{node_id}/complete")
-def mark_node_complete(node_id: int, db: Session = Depends(get_db)):
+def mark_node_complete(node_id: int, request: CompleteRequest = CompleteRequest(), db: Session = Depends(get_db)):
     node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
     node.is_completed = True
     db.commit()
+    if request.user_key:
+        update_streak(request.user_key, db)
     return {"status": "ok", "node_id": node_id}
 
 
@@ -600,6 +608,7 @@ def review_node(node_id: int, request: ReviewRequest, db: Session = Depends(get_
         node.is_completed = True
 
     db.commit()
+    update_streak(request.user_key, db)
 
     return {
         "node_id": node_id,
@@ -639,6 +648,41 @@ def get_sr_status(node_id: int, user_key: str, db: Session = Depends(get_db)):
         "easiness_factor": sr.easiness_factor,
         "mastery": get_mastery_level(sr.repetitions, sr.correct_reviews, sr.total_reviews),
         "next_review": sr.next_review.isoformat() if sr.next_review else None,
+    }
+
+
+def _compute_badge(current_streak: int) -> str | None:
+    if current_streak >= 30:
+        return "🔥 Легенда"
+    if current_streak >= 14:
+        return "⚡ Эксперт"
+    if current_streak >= 7:
+        return "🌟 Мастер"
+    if current_streak >= 3:
+        return "💪 В ударе"
+    if current_streak >= 1:
+        return "🌱 Новичок"
+    return None
+
+
+@app.get("/api/streaks/{user_key}")
+def get_user_streak(user_key: str, db: Session = Depends(get_db)):
+    """Return streak info and badge for a user."""
+    streak = get_streak(user_key, db)
+    if streak is None:
+        return {
+            "current_streak": 0,
+            "longest_streak": 0,
+            "total_days_active": 0,
+            "last_activity_date": None,
+            "badge": None,
+        }
+    return {
+        "current_streak": streak.current_streak,
+        "longest_streak": streak.longest_streak,
+        "total_days_active": streak.total_days_active,
+        "last_activity_date": streak.last_activity_date.isoformat() if streak.last_activity_date else None,
+        "badge": _compute_badge(streak.current_streak),
     }
 
 
