@@ -6,6 +6,7 @@ Run from the `backend/` directory:
 
     pytest tests/ -v
 """
+import json
 import os
 import sys
 import types
@@ -31,6 +32,11 @@ class _MockCompletion:
     choices = [_MockChoice()]
 
 _litellm_stub.completion = lambda *a, **kw: _MockCompletion()  # type: ignore[attr-defined]
+
+async def _async_mock_completion(*a, **kw):  # noqa: RUF029
+    return _MockCompletion()
+
+_litellm_stub.acompletion = _async_mock_completion  # type: ignore[attr-defined]
 sys.modules.setdefault("litellm", _litellm_stub)
 
 from unittest.mock import AsyncMock, patch  # noqa: E402
@@ -384,3 +390,113 @@ class TestPostgresUrlNormalisation:
         assert "postgres://" in source and "postgresql://" in source, (
             "base.py must rewrite postgres:// to postgresql://"
         )
+
+
+# ===========================================================================
+# /api/explain-stream/{node_id} -- SSE streaming endpoint
+# ===========================================================================
+
+def _parse_sse(text: str) -> list[dict]:
+    """Parse SSE response body into a list of data payloads."""
+    events = []
+    for line in text.splitlines():
+        if line.startswith("data: "):
+            events.append(json.loads(line[6:]))
+    return events
+
+
+class _FakeStreamLine:
+    """Fake httpx streaming response that yields pre-set SSE lines."""
+
+    def __init__(self, lines: list[str]):
+        self._lines = lines
+
+    async def aiter_lines(self):
+        for line in self._lines:
+            yield line
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        pass
+
+
+class _FakeHttpxClient:
+    def __init__(self, lines: list[str]):
+        self._lines = lines
+
+    def stream(self, *args, **kwargs):
+        return _FakeStreamLine(self._lines)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        pass
+
+
+class TestExplainStream:
+    def _create_node(self, db, label: str = "SSENode") -> int:
+        from app.models.knowledge import KnowledgeNode
+        node = KnowledgeNode(label=label, level=1, is_completed=False, prerequisites=[])
+        db.add(node)
+        db.commit()
+        db.refresh(node)
+        return node.id
+
+    def test_stream_unknown_node_returns_404(self):
+        res = CLIENT.get("/api/explain-stream/999999")
+        assert res.status_code == 404
+
+    def test_stream_non_integer_id_returns_422(self):
+        res = CLIENT.get("/api/explain-stream/not-a-number")
+        assert res.status_code == 422
+
+    def test_stream_cache_hit_returns_sse_with_done(self):
+        from sqlalchemy.orm import Session
+        from app.models.knowledge import NodeExplanation
+        db: Session = next(override_get_db())
+        node_id = self._create_node(db, label="CachedSSE")
+        db.add(NodeExplanation(node_id=node_id, explanation="Кэшированный ответ."))
+        db.commit()
+        db.close()
+
+        res = CLIENT.get(f"/api/explain-stream/{node_id}")
+        assert res.status_code == 200
+        assert "text/event-stream" in res.headers["content-type"]
+
+        events = _parse_sse(res.text)
+        assert any(e.get("cached") is True for e in events), "Expected cached=True event"
+        assert events[-1].get("done") is True, "Expected done=True as last event"
+
+    def test_stream_ai_response_streams_chunks_and_caches(self):
+        from sqlalchemy.orm import Session
+        from app.models.knowledge import NodeExplanation
+        db: Session = next(override_get_db())
+        node_id = self._create_node(db, label="StreamedAI")
+        db.close()
+
+        fake_lines = [
+            'data: {"choices":[{"delta":{"content":"Стрим"}}]}',
+            'data: {"choices":[{"delta":{"content":" работает."}}]}',
+            "data: [DONE]",
+        ]
+        fake_client = _FakeHttpxClient(fake_lines)
+
+        with patch("app.main.httpx.AsyncClient", return_value=fake_client):
+            res = CLIENT.get(f"/api/explain-stream/{node_id}")
+
+        assert res.status_code == 200
+        events = _parse_sse(res.text)
+        texts = [e["text"] for e in events if "text" in e]
+        assert texts == ["Стрим", " работает."], f"Unexpected chunks: {texts}"
+        assert events[-1].get("done") is True
+
+        # Verify cached in DB
+        from sqlalchemy.orm import Session
+        db2: Session = next(override_get_db())
+        cached = db2.query(NodeExplanation).filter(NodeExplanation.node_id == node_id).first()
+        db2.close()
+        assert cached is not None
+        assert cached.explanation == "Стрим работает."

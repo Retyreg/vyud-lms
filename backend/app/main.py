@@ -7,6 +7,7 @@ import httpx
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from app.auth.dependencies import get_telegram_user
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -354,6 +355,105 @@ async def explain_node(node_id: int, regenerate: bool = False, db: Session = Dep
 
 class CompleteRequest(BaseModel):
     user_key: str = ""
+
+
+async def _stream_explanation(node_id: int, label: str, description: str | None, db: Session):
+    """Async generator: streams Groq SSE chunks, saves full text to cache on finish."""
+    description_part = f"\nКонтекст: {description}" if description else ""
+    prompt = f"Объясни концепт '{label}' простым языком для новичка.{description_part}"
+    system = (
+        "Ты AI-тьютор платформы VYUD. Правила: "
+        "начни с ключевой идеи (1-2 предложения), "
+        "приведи конкретный пример из жизни, "
+        "объясни почему это важно знать. "
+        "Максимум 120 слов. "
+        "Не используй слова 'данный', 'следует отметить'. "
+        "Отвечай сразу — без вводных фраз типа 'Конечно!' или 'Отличный вопрос!'."
+    )
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt},
+    ]
+
+    full_text_parts: list[str] = []
+
+    try:
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={"model": "llama-3.3-70b-versatile", "messages": messages, "temperature": 0.4, "stream": True},
+                timeout=60.0,
+            ) as resp:
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    raw = line[6:]
+                    if raw == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(raw)["choices"][0]["delta"].get("content", "")
+                    except (KeyError, json.JSONDecodeError):
+                        continue
+                    if delta:
+                        full_text_parts.append(delta)
+                        yield f"data: {json.dumps({'text': delta})}\n\n"
+    except Exception as e:
+        logger.error("Groq streaming failed: %s", e)
+        # Fallback: non-streaming Gemini
+        try:
+            from litellm import acompletion as _acompletion
+            fallback = await _acompletion(model="gemini/gemini-2.0-flash", messages=messages, temperature=0.4)
+            text = fallback.choices[0].message.content
+            full_text_parts.append(text)
+            yield f"data: {json.dumps({'text': text})}\n\n"
+        except Exception as e2:
+            logger.error("Gemini fallback failed: %s", e2)
+            yield f"data: {json.dumps({'error': 'AI providers unavailable'})}\n\n"
+            return
+
+    # Save full explanation to cache
+    full_text = "".join(full_text_parts)
+    if full_text:
+        existing = db.query(NodeExplanation).filter(NodeExplanation.node_id == node_id).first()
+        if existing:
+            existing.explanation = full_text
+        else:
+            db.add(NodeExplanation(node_id=node_id, explanation=full_text))
+        db.commit()
+
+    yield f"data: {json.dumps({'done': True})}\n\n"
+
+
+@app.get("/api/explain-stream/{node_id}")
+async def explain_node_stream(node_id: int, regenerate: bool = False, db: Session = Depends(get_db)):
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    if not regenerate:
+        cached = (
+            db.query(NodeExplanation)
+            .filter(NodeExplanation.node_id == node_id)
+            .order_by(NodeExplanation.created_at.desc())
+            .first()
+        )
+        if cached:
+            async def _cached():
+                yield f"data: {json.dumps({'text': cached.explanation, 'cached': True})}\n\n"
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            return StreamingResponse(_cached(), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    return StreamingResponse(
+        _stream_explanation(node_id, node.label, node.description, db),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/nodes/{node_id}/complete")

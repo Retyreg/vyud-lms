@@ -13,7 +13,7 @@ def update_streak(user_key: str, db: Session) -> UserStreak:
 
     streak = db.query(UserStreak).filter(UserStreak.user_key == user_key).first()
     if streak is None:
-        streak = UserStreak(user_key=user_key)
+        streak = UserStreak(user_key=user_key, current_streak=0, longest_streak=0, total_days_active=0)
         db.add(streak)
 
     last = streak.last_activity_date
