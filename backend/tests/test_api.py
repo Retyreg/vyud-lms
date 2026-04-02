@@ -405,38 +405,38 @@ def _parse_sse(text: str) -> list[dict]:
     return events
 
 
-class _FakeStreamLine:
-    """Fake httpx streaming response that yields pre-set SSE lines."""
+def _make_httpx_stream_mock(lines: list[str]):
+    """Build an AsyncMock for httpx.AsyncClient that streams pre-set SSE lines."""
+    from unittest.mock import AsyncMock, MagicMock
 
-    def __init__(self, lines: list[str]):
-        self._lines = lines
-
-    async def aiter_lines(self):
-        for line in self._lines:
+    async def _aiter_lines():
+        for line in lines:
             yield line
 
-    async def __aenter__(self):
-        return self
+    mock_resp = MagicMock()
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+    mock_resp.aiter_lines = _aiter_lines
 
-    async def __aexit__(self, *_):
-        pass
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.stream = MagicMock(return_value=mock_resp)
 
-
-class _FakeHttpxClient:
-    def __init__(self, lines: list[str]):
-        self._lines = lines
-
-    def stream(self, *args, **kwargs):
-        return _FakeStreamLine(self._lines)
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *_):
-        pass
+    return mock_client
 
 
 class TestExplainStream:
+    def setup_method(self):
+        """Re-apply the correct DB override before each test.
+
+        test_auth.py overwrites dependency_overrides[get_db] at module-import
+        time with a different in-memory engine. This restores it so that both
+        the test helpers and the TestClient use the same database.
+        """
+        import app.main as _main
+        _main.app.dependency_overrides[_main.get_db] = override_get_db
+
     def _create_node(self, db, label: str = "SSENode") -> int:
         from app.models.knowledge import KnowledgeNode
         node = KnowledgeNode(label=label, level=1, is_completed=False, prerequisites=[])
@@ -455,12 +455,15 @@ class TestExplainStream:
 
     def test_stream_cache_hit_returns_sse_with_done(self):
         from sqlalchemy.orm import Session
-        from app.models.knowledge import NodeExplanation
         db: Session = next(override_get_db())
         node_id = self._create_node(db, label="CachedSSE")
-        db.add(NodeExplanation(node_id=node_id, explanation="Кэшированный ответ."))
-        db.commit()
         db.close()
+
+        # Pre-populate cache through the regular endpoint so both write and read
+        # use the same DB session (avoids cross-session visibility issues).
+        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+            mock_ai.return_value = "Кэшированный ответ."
+            CLIENT.get(f"/api/explain/{node_id}")  # writes cache
 
         res = CLIENT.get(f"/api/explain-stream/{node_id}")
         assert res.status_code == 200
@@ -482,9 +485,9 @@ class TestExplainStream:
             'data: {"choices":[{"delta":{"content":" работает."}}]}',
             "data: [DONE]",
         ]
-        fake_client = _FakeHttpxClient(fake_lines)
+        mock_client = _make_httpx_stream_mock(fake_lines)
 
-        with patch("app.main.httpx.AsyncClient", return_value=fake_client):
+        with patch("app.main.httpx.AsyncClient", return_value=mock_client):
             res = CLIENT.get(f"/api/explain-stream/{node_id}")
 
         assert res.status_code == 200
