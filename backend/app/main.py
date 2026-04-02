@@ -559,6 +559,36 @@ def get_org(org_id: int, user_key: str, db: Session = Depends(get_db)):
     )
 
 
+@app.delete("/api/orgs/{org_id}/members/{member_key}", status_code=200)
+def remove_org_member(org_id: int, member_key: str, user_key: str, db: Session = Depends(get_db)):
+    """Менеджер удаляет участника из организации."""
+    _require_manager(org_id, user_key, db)
+    if member_key == user_key:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself")
+    member = db.query(OrgMember).filter(
+        OrgMember.org_id == org_id,
+        OrgMember.user_key == member_key,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    db.delete(member)
+    db.commit()
+    return {"removed": member_key}
+
+
+@app.post("/api/orgs/{org_id}/invite/regenerate")
+def regenerate_invite(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Менеджер сбрасывает инвайт-код (старый перестаёт работать)."""
+    import secrets as _secrets
+    _require_manager(org_id, user_key, db)
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    org.invite_code = _secrets.token_urlsafe(8)
+    db.commit()
+    return {"invite_code": org.invite_code, "invite_url": f"?invite={org.invite_code}"}
+
+
 @app.get("/api/orgs/{org_id}/courses/latest", response_model=GraphResponse)
 def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
     """Граф последнего курса организации."""

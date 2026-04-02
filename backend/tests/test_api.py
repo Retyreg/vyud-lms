@@ -563,3 +563,75 @@ class TestOrgTeamAccess:
         # Manager should get 200
         res = CLIENT.get(f"/api/orgs/{org['org_id']}/progress", params={"user_key": "mgr_prog"})
         assert res.status_code == 200
+
+    def test_remove_member_by_manager(self):
+        org = self._create_org_with_manager("mgr_rm")
+        CLIENT.post("/api/orgs/join", params={"invite_code": org["invite_code"]},
+                    json={"user_key": "emp_rm"})
+        res = CLIENT.delete(
+            f"/api/orgs/{org['org_id']}/members/emp_rm",
+            params={"user_key": "mgr_rm"},
+        )
+        assert res.status_code == 200
+        assert res.json()["removed"] == "emp_rm"
+        # Member is gone
+        orgs = CLIENT.get("/api/users/emp_rm/orgs").json()
+        assert not any(o["org_id"] == org["org_id"] for o in orgs)
+
+    def test_remove_member_404_if_not_member(self):
+        org = self._create_org_with_manager("mgr_rm404")
+        res = CLIENT.delete(
+            f"/api/orgs/{org['org_id']}/members/ghost",
+            params={"user_key": "mgr_rm404"},
+        )
+        assert res.status_code == 404
+
+    def test_remove_member_400_self_removal(self):
+        org = self._create_org_with_manager("mgr_self")
+        res = CLIENT.delete(
+            f"/api/orgs/{org['org_id']}/members/mgr_self",
+            params={"user_key": "mgr_self"},
+        )
+        assert res.status_code == 400
+
+    def test_remove_member_403_non_manager(self):
+        org = self._create_org_with_manager("mgr_rm403")
+        CLIENT.post("/api/orgs/join", params={"invite_code": org["invite_code"]},
+                    json={"user_key": "emp_rm403"})
+        res = CLIENT.delete(
+            f"/api/orgs/{org['org_id']}/members/mgr_rm403",
+            params={"user_key": "emp_rm403"},
+        )
+        assert res.status_code == 403
+
+    def test_regenerate_invite_changes_code(self):
+        org = self._create_org_with_manager("mgr_regen")
+        old_code = org["invite_code"]
+        res = CLIENT.post(
+            f"/api/orgs/{org['org_id']}/invite/regenerate",
+            params={"user_key": "mgr_regen"},
+        )
+        assert res.status_code == 200
+        new_code = res.json()["invite_code"]
+        assert new_code != old_code
+
+    def test_regenerate_invite_old_code_no_longer_works(self):
+        org = self._create_org_with_manager("mgr_regen2")
+        old_code = org["invite_code"]
+        CLIENT.post(
+            f"/api/orgs/{org['org_id']}/invite/regenerate",
+            params={"user_key": "mgr_regen2"},
+        )
+        res = CLIENT.post("/api/orgs/join", params={"invite_code": old_code},
+                          json={"user_key": "late_joiner"})
+        assert res.status_code == 404
+
+    def test_regenerate_invite_403_non_manager(self):
+        org = self._create_org_with_manager("mgr_regen403")
+        CLIENT.post("/api/orgs/join", params={"invite_code": org["invite_code"]},
+                    json={"user_key": "emp_regen403"})
+        res = CLIENT.post(
+            f"/api/orgs/{org['org_id']}/invite/regenerate",
+            params={"user_key": "emp_regen403"},
+        )
+        assert res.status_code == 403
