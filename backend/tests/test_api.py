@@ -500,3 +500,66 @@ class TestExplainStream:
         db2.close()
         assert cached is not None
         assert cached.explanation == "Стрим работает."
+
+
+# ===========================================================================
+# Org team access endpoints
+# ===========================================================================
+
+class TestOrgTeamAccess:
+    def _create_org_with_manager(self, manager_key: str = "mgr_1") -> dict:
+        res = CLIENT.post("/api/orgs", json={"name": "ACME", "manager_key": manager_key})
+        assert res.status_code == 200
+        return res.json()
+
+    def test_get_user_orgs_returns_org_for_manager(self):
+        org = self._create_org_with_manager("mgr_list")
+        res = CLIENT.get("/api/users/mgr_list/orgs")
+        assert res.status_code == 200
+        orgs = res.json()
+        assert any(o["org_id"] == org["org_id"] for o in orgs)
+        match = next(o for o in orgs if o["org_id"] == org["org_id"])
+        assert match["is_manager"] is True
+
+    def test_get_user_orgs_returns_empty_for_unknown_user(self):
+        res = CLIENT.get("/api/users/nobody_xyz/orgs")
+        assert res.status_code == 200
+        assert res.json() == []
+
+    def test_get_user_orgs_member_is_not_manager(self):
+        org = self._create_org_with_manager("mgr_member_test")
+        CLIENT.post("/api/orgs/join", params={"invite_code": org["invite_code"]},
+                    json={"user_key": "emp_member_test"})
+        res = CLIENT.get("/api/users/emp_member_test/orgs")
+        assert res.status_code == 200
+        match = next((o for o in res.json() if o["org_id"] == org["org_id"]), None)
+        assert match is not None
+        assert match["is_manager"] is False
+
+    def test_get_org_returns_info_for_member(self):
+        org = self._create_org_with_manager("mgr_orginfo")
+        res = CLIENT.get(f"/api/orgs/{org['org_id']}", params={"user_key": "mgr_orginfo"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["org_name"] == "ACME"
+        assert body["is_manager"] is True
+
+    def test_get_org_403_for_non_member(self):
+        org = self._create_org_with_manager("mgr_403")
+        res = CLIENT.get(f"/api/orgs/{org['org_id']}", params={"user_key": "stranger"})
+        assert res.status_code == 403
+
+    def test_get_org_404_for_unknown_org(self):
+        res = CLIENT.get("/api/orgs/999999", params={"user_key": "anyone"})
+        assert res.status_code == 404
+
+    def test_progress_requires_manager(self):
+        org = self._create_org_with_manager("mgr_prog")
+        CLIENT.post("/api/orgs/join", params={"invite_code": org["invite_code"]},
+                    json={"user_key": "emp_prog"})
+        # Employee should get 403
+        res = CLIENT.get(f"/api/orgs/{org['org_id']}/progress", params={"user_key": "emp_prog"})
+        assert res.status_code == 403
+        # Manager should get 200
+        res = CLIENT.get(f"/api/orgs/{org['org_id']}/progress", params={"user_key": "mgr_prog"})
+        assert res.status_code == 200

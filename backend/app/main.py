@@ -140,6 +140,12 @@ class MemberProgress(BaseModel):
     total_count: int
     percent: float
 
+class OrgInfo(BaseModel):
+    org_id: int
+    org_name: str
+    invite_code: str
+    is_manager: bool
+
 class ReviewRequest(BaseModel):
     user_key: str
     quality: int  # 0-3 from 4-button UI (mapped to SM-2 q: 0→0, 1→2, 2→4, 3→5)
@@ -504,6 +510,55 @@ def join_org(invite_code: str, request: OrgJoinRequest, db: Session = Depends(ge
     return {"org_id": org.id, "org_name": org.name, "already_member": False}
 
 
+def _require_manager(org_id: int, user_key: str, db: Session) -> OrgMember:
+    """Raise 403 if user_key is not a manager of org_id."""
+    member = db.query(OrgMember).filter(
+        OrgMember.org_id == org_id,
+        OrgMember.user_key == user_key,
+        OrgMember.is_manager == True,  # noqa: E712
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    return member
+
+
+@app.get("/api/users/{user_key}/orgs", response_model=List[OrgInfo])
+def get_user_orgs(user_key: str, db: Session = Depends(get_db)):
+    """Список организаций, в которых состоит пользователь."""
+    memberships = db.query(OrgMember).filter(OrgMember.user_key == user_key).all()
+    result = []
+    for m in memberships:
+        org = db.query(Organization).filter(Organization.id == m.org_id).first()
+        if org:
+            result.append(OrgInfo(
+                org_id=org.id,
+                org_name=org.name,
+                invite_code=org.invite_code,
+                is_manager=m.is_manager,
+            ))
+    return result
+
+
+@app.get("/api/orgs/{org_id}", response_model=OrgInfo)
+def get_org(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Информация об организации. Доступна только участникам."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    member = db.query(OrgMember).filter(
+        OrgMember.org_id == org_id,
+        OrgMember.user_key == user_key,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a member of this org")
+    return OrgInfo(
+        org_id=org.id,
+        org_name=org.name,
+        invite_code=org.invite_code,
+        is_manager=member.is_manager,
+    )
+
+
 @app.get("/api/orgs/{org_id}/courses/latest", response_model=GraphResponse)
 def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
     """Граф последнего курса организации."""
@@ -544,11 +599,12 @@ def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/orgs/{org_id}/progress")
-def get_org_progress(org_id: int, db: Session = Depends(get_db)):
+def get_org_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
     """Дашборд менеджера: прогресс каждого участника команды."""
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
     members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
     course = db.query(Course).filter(
         Course.org_id == org_id
@@ -585,12 +641,14 @@ def get_org_progress(org_id: int, db: Session = Depends(get_db)):
 async def generate_org_course(
     org_id: int,
     request: CourseGenerationRequest,
+    user_key: str,
     db: Session = Depends(get_db),
 ):
     """Генерация курса привязанного к организации."""
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
 
     topic = request.topic
     prompt = (
