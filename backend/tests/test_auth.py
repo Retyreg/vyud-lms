@@ -163,7 +163,7 @@ class TestTelegramAuthDependency:
         monkeypatch.setattr(deps, "_BOT_TOKEN", BOT_TOKEN)
         init_data = _make_init_data(_TEST_USER, bot_token=BOT_TOKEN)
         from unittest.mock import AsyncMock, patch
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = '[{"title": "A", "description": "desc", "list_of_prerequisite_titles": []}]'
             res = _AUTH_CLIENT.post(
                 "/api/courses/generate",

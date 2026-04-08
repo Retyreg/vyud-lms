@@ -81,13 +81,17 @@ def override_get_db():
 
 
 # Patch the app's dependency so every request uses the in-memory DB
-main_module.app.dependency_overrides[main_module.get_db] = override_get_db
+from app.dependencies import get_db as _shared_get_db  # noqa: E402
+main_module.app.dependency_overrides[_shared_get_db] = override_get_db
 
 # Bypass Telegram auth in tests — no real bot token needed
 main_module.app.dependency_overrides[get_telegram_user] = lambda: {"id": 1, "first_name": "Test"}
 
 # Also patch the module-level engine so /api/health can connect
-main_module.engine = TEST_ENGINE
+import app.routers.health as health_module  # noqa: E402
+import app.db.base as db_base_module  # noqa: E402
+health_module.engine = TEST_ENGINE
+db_base_module.engine = TEST_ENGINE
 
 
 CLIENT = TestClient(main_module.app)
@@ -187,7 +191,7 @@ MOCK_AI_RESPONSE_WRAPPED = (
 
 class TestCourseGenerate:
     def test_generate_creates_course_and_nodes(self):
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = MOCK_AI_RESPONSE
             res = CLIENT.post(
                 "/api/courses/generate",
@@ -198,14 +202,14 @@ class TestCourseGenerate:
 
     def test_generate_handles_object_wrapped_array(self):
         """AI with json_mode returns {\"courses\": [...]} instead of a bare array."""
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = MOCK_AI_RESPONSE_WRAPPED
             res = CLIENT.post("/api/courses/generate", json={"topic": "Python Wrapped"})
         assert res.status_code == 200, res.json()
         assert res.json()["status"] == "ok"
 
     def test_generate_course_appears_in_latest(self):
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = MOCK_AI_RESPONSE
             CLIENT.post("/api/courses/generate", json={"topic": "Python Graph Test"})
 
@@ -213,7 +217,7 @@ class TestCourseGenerate:
         assert len(latest["nodes"]) > 0
 
     def test_generate_creates_edges_for_prerequisites(self):
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = MOCK_AI_RESPONSE
             CLIENT.post("/api/courses/generate", json={"topic": "Python Edges Test"})
 
@@ -223,13 +227,13 @@ class TestCourseGenerate:
     def test_generate_handles_markdown_wrapped_json(self):
         """AI may wrap the JSON in a markdown code block."""
         markdown_response = "```json\n" + MOCK_AI_RESPONSE + "\n```"
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = markdown_response
             res = CLIENT.post("/api/courses/generate", json={"topic": "Markdown Test"})
         assert res.status_code == 200
 
     def test_generate_returns_error_on_invalid_ai_json(self):
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = "not valid json {{{"
             res = CLIENT.post("/api/courses/generate", json={"topic": "Bad JSON"})
         assert res.status_code == 500
@@ -259,7 +263,7 @@ class TestExplain:
         node_id = self._create_node(db)
         db.close()
 
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.explain.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = "Python — это простой язык программирования."
             res = CLIENT.get(f"/api/explain/{node_id}")
         assert res.status_code == 200
@@ -273,7 +277,7 @@ class TestExplain:
         node_id = self._create_node(db, label="React")
         db.close()
 
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.explain.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = "React — библиотека для UI."
             CLIENT.get(f"/api/explain/{node_id}")          # first call — writes cache
             res = CLIENT.get(f"/api/explain/{node_id}")    # second call — cache hit
@@ -461,7 +465,7 @@ class TestExplainStream:
 
         # Pre-populate cache through the regular endpoint so both write and read
         # use the same DB session (avoids cross-session visibility issues).
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.routers.explain.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = "Кэшированный ответ."
             CLIENT.get(f"/api/explain/{node_id}")  # writes cache
 
@@ -487,7 +491,7 @@ class TestExplainStream:
         ]
         mock_client = _make_httpx_stream_mock(fake_lines)
 
-        with patch("app.main.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.services.ai.httpx.AsyncClient", return_value=mock_client):
             res = CLIENT.get(f"/api/explain-stream/{node_id}")
 
         assert res.status_code == 200
