@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import List
 
 
 class NodeSchema(BaseModel):
@@ -16,5 +15,5 @@ class EdgeSchema(BaseModel):
 
 
 class GraphResponse(BaseModel):
-    nodes: List[NodeSchema]
-    edges: List[EdgeSchema]
+    nodes: list[NodeSchema]
+    edges: list[EdgeSchema]

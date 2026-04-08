@@ -3,7 +3,6 @@ import logging
 import math
 import secrets as _secrets
 from collections import defaultdict
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -118,7 +117,7 @@ def join_org(invite_code: str, request: OrgJoinRequest, db: Session = Depends(ge
     return {"org_id": org.id, "org_name": org.name, "already_member": False}
 
 
-@router.get("/api/users/{user_key}/orgs", response_model=List[OrgInfo])
+@router.get("/api/users/{user_key}/orgs", response_model=list[OrgInfo])
 def get_user_orgs(user_key: str, db: Session = Depends(get_db)):
     """Список организаций, в которых состоит пользователь."""
     memberships = db.query(OrgMember).filter(OrgMember.user_key == user_key).all()
@@ -458,35 +457,7 @@ async def upload_pdf(
         raise HTTPException(status_code=500, detail=str(e))
 
     try:
-        new_course = Course(title=topic, description=f"Курс: {topic}", org_id=org_id)
-        db.add(new_course)
-        db.flush()
-
-        title_to_id = {}
-        created_nodes = []
-        for node_data in nodes_data:
-            new_node = KnowledgeNode(
-                label=node_data["title"],
-                description=node_data.get("description", ""),
-                level=1,
-                course_id=new_course.id,
-                prerequisites=[],
-            )
-            db.add(new_node)
-            db.flush()
-            title_to_id[node_data["title"]] = new_node.id
-            created_nodes.append(
-                (new_node, node_data.get("list_of_prerequisite_titles", []))
-            )
-
-        for node, prereq_titles in created_nodes:
-            new_prereq_ids = []
-            for p_title in prereq_titles:
-                if p_title in title_to_id:
-                    p_id = title_to_id[p_title]
-                    new_prereq_ids.append(p_id)
-                    db.add(KnowledgeEdge(source_id=p_id, target_id=node.id))
-            node.prerequisites = new_prereq_ids
+        new_course = create_course_from_nodes(db, topic, nodes_data, org_id=org_id)
 
         for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             db.add(
@@ -499,7 +470,10 @@ async def upload_pdf(
             )
 
         db.commit()
-        return {"status": "ok", "course_id": new_course.id, "node_count": len(created_nodes)}
+        node_count = db.query(KnowledgeNode).filter(
+            KnowledgeNode.course_id == new_course.id
+        ).count()
+        return {"status": "ok", "course_id": new_course.id, "node_count": node_count}
 
     except Exception as e:
         db.rollback()
