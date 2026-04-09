@@ -1,0 +1,45 @@
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+from app.db.base import Base
+
+
+class SOP(Base):
+    __tablename__ = "sops"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String, default="draft", nullable=False)
+    created_by = Column(String, nullable=False)
+    quiz_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    steps = relationship("SOPStep", back_populates="sop", order_by="SOPStep.step_number")
+
+
+class SOPStep(Base):
+    __tablename__ = "sop_steps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sop_id = Column(Integer, ForeignKey("sops.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_number = Column(Integer, nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    image_url = Column(String, nullable=True)
+
+    sop = relationship("SOP", back_populates="steps")
+
+
+class SOPCompletion(Base):
+    __tablename__ = "sop_completions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sop_id = Column(Integer, ForeignKey("sops.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_key = Column(String, nullable=False, index=True)
+    score = Column(Integer, nullable=True)
+    max_score = Column(Integer, nullable=True)
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+    time_spent_sec = Column(Integer, nullable=True)

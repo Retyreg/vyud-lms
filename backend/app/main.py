@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from app.auth.dependencies import get_telegram_user
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
@@ -149,6 +150,40 @@ class OrgInfo(BaseModel):
 class ReviewRequest(BaseModel):
     user_key: str
     quality: int  # 0-3 from 4-button UI (mapped to SM-2 q: 0→0, 1→2, 2→4, 3→5)
+
+class SOPCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+
+class SOPStepSchema(BaseModel):
+    step_number: int
+    title: str
+    content: str
+
+class SOPResponse(BaseModel):
+    id: int
+    title: str
+    description: str | None
+    status: str
+    steps: list[SOPStepSchema]
+    quiz_json: list | None
+    created_at: str | None
+
+class SOPListItem(BaseModel):
+    id: int
+    title: str
+    description: str | None
+    status: str
+    steps_count: int
+    is_completed: bool
+
+class SOPCompletionRecord(BaseModel):
+    user_key: str
+    sop_id: int
+    sop_title: str
+    score: int | None
+    max_score: int | None
+    completed_at: str | None
 
 # Maps 4-button UI rating (0-3) to SM-2 quality (0-5)
 _QUALITY_MAP = {0: 0, 1: 2, 2: 4, 3: 5}
@@ -1222,3 +1257,273 @@ async def generate_file_quiz(
         )
 
     return {"test_id": quiz_id}
+
+
+# --- SOP endpoints ---
+
+from app.models.sop import SOP, SOPStep, SOPCompletion
+
+@app.get("/api/orgs/{org_id}/sops")
+def list_org_sops(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Список СОП организации с флагом completion для user_key."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    sops = db.query(SOP).filter(
+        SOP.org_id == org_id,
+        SOP.status == "published"
+    ).order_by(SOP.created_at.desc()).all()
+
+    completed_sop_ids = set()
+    if user_key:
+        completions = db.query(SOPCompletion.sop_id).filter(
+            SOPCompletion.user_key == user_key,
+            SOPCompletion.sop_id.in_([s.id for s in sops])
+        ).all()
+        completed_sop_ids = {c.sop_id for c in completions}
+
+    result = []
+    for s in sops:
+        steps_count = db.query(SOPStep).filter(SOPStep.sop_id == s.id).count()
+        result.append(SOPListItem(
+            id=s.id,
+            title=s.title,
+            description=s.description,
+            status=s.status,
+            steps_count=steps_count,
+            is_completed=s.id in completed_sop_ids,
+        ))
+    return result
+
+
+@app.get("/api/sops/{sop_id}")
+def get_sop(sop_id: int, db: Session = Depends(get_db)):
+    """Получить СОП с шагами и квизом."""
+    sop = db.query(SOP).filter(SOP.id == sop_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+
+    steps = db.query(SOPStep).filter(
+        SOPStep.sop_id == sop_id
+    ).order_by(SOPStep.step_number).all()
+
+    return SOPResponse(
+        id=sop.id,
+        title=sop.title,
+        description=sop.description,
+        status=sop.status,
+        steps=[SOPStepSchema(
+            step_number=st.step_number,
+            title=st.title,
+            content=st.content,
+        ) for st in steps],
+        quiz_json=sop.quiz_json,
+        created_at=sop.created_at.isoformat() if sop.created_at else None,
+    )
+
+
+@app.post("/api/sops/{sop_id}/complete")
+def complete_sop(sop_id: int, user_key: str, score: int = 0, max_score: int = 0,
+                 time_spent_sec: int = 0, db: Session = Depends(get_db)):
+    """Отметить прохождение СОП сотрудником."""
+    sop = db.query(SOP).filter(SOP.id == sop_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+
+    existing = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id == sop_id,
+        SOPCompletion.user_key == user_key,
+    ).first()
+
+    if existing:
+        existing.score = score
+        existing.max_score = max_score
+        existing.time_spent_sec = time_spent_sec
+        existing.completed_at = func.now()
+    else:
+        db.add(SOPCompletion(
+            sop_id=sop_id,
+            user_key=user_key,
+            score=score,
+            max_score=max_score,
+            time_spent_sec=time_spent_sec,
+        ))
+
+    db.commit()
+
+    update_streak(user_key, db)
+
+    return {"status": "ok", "sop_id": sop_id, "score": score, "max_score": max_score}
+
+
+@app.post("/api/orgs/{org_id}/sops/upload-pdf")
+async def upload_sop_pdf(
+    org_id: int,
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    user_key: str = Form(default=""),
+    db: Session = Depends(get_db),
+):
+    """Загрузка PDF → AI генерирует шаги СОП + тестовые вопросы."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    file_bytes = await file.read()
+    try:
+        pdf_text = extract_text_from_pdf(file_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {e}")
+
+    if not pdf_text.strip():
+        raise HTTPException(status_code=400, detail="PDF is empty or unreadable")
+
+    if not title:
+        title = (file.filename or "СОП").rsplit(".", 1)[0]
+
+    text_for_ai = pdf_text[:10000]
+
+    steps_prompt = (
+        f"Разбей следующий текст на 5-7 чётких пронумерованных шагов стандартной операционной процедуры (СОП).\n\n"
+        f"Текст:\n{text_for_ai}\n\n"
+        f"Верни JSON-массив:\n"
+        f'[{{"step_number": 1, "title": "Краткое название шага", "content": "Подробное описание шага в 2-3 предложения"}}]'
+    )
+
+    try:
+        steps_raw = await call_ai(
+            steps_prompt,
+            "Ты эксперт по стандартным операционным процедурам. Ответ — только валидный JSON-массив, без текста вокруг.",
+            json_mode=False,
+        )
+
+        if "```json" in steps_raw:
+            steps_raw = steps_raw.split("```json")[1].split("```")[0]
+        elif "```" in steps_raw:
+            steps_raw = steps_raw.split("```")[1].split("```")[0]
+        else:
+            m = re.search(r"(\[[\s\S]*\])", steps_raw)
+            if m:
+                steps_raw = m.group(1)
+
+        steps_data = json.loads(steps_raw.strip())
+        if isinstance(steps_data, dict):
+            steps_data = next((v for v in steps_data.values() if isinstance(v, list)), [])
+
+    except Exception as e:
+        logger.error(f"AI steps generation failed: {e}")
+        raise HTTPException(status_code=503, detail="AI unavailable. Try again later.")
+
+    steps_text = "\n".join(f"{s['step_number']}. {s['title']}: {s['content']}" for s in steps_data)
+    quiz_prompt = (
+        f"На основе следующих шагов СОП создай 5 тестовых вопросов на русском языке.\n\n"
+        f"Шаги:\n{steps_text}\n\n"
+        f"Верни JSON-массив:\n"
+        f'[{{"question": "...", "options": ["A", "B", "C", "D"], "correct_answer": "A", "explanation": "..."}}]'
+    )
+
+    try:
+        quiz_raw = await call_ai(
+            quiz_prompt,
+            "Ты эксперт по обучению персонала. Ответ — только валидный JSON-массив.",
+            json_mode=False,
+        )
+
+        if "```json" in quiz_raw:
+            quiz_raw = quiz_raw.split("```json")[1].split("```")[0]
+        elif "```" in quiz_raw:
+            quiz_raw = quiz_raw.split("```")[1].split("```")[0]
+        else:
+            m = re.search(r"(\[[\s\S]*\])", quiz_raw)
+            if m:
+                quiz_raw = m.group(1)
+
+        quiz_data = json.loads(quiz_raw.strip())
+        if isinstance(quiz_data, dict):
+            quiz_data = next((v for v in quiz_data.values() if isinstance(v, list)), [])
+
+    except Exception as e:
+        logger.error(f"AI quiz generation failed: {e}")
+        quiz_data = []
+
+    try:
+        new_sop = SOP(
+            org_id=org_id,
+            title=title,
+            description=f"СОП: {title}",
+            status="published",
+            created_by=user_key or "anonymous",
+            quiz_json=quiz_data,
+        )
+        db.add(new_sop)
+        db.flush()
+
+        for step in steps_data:
+            db.add(SOPStep(
+                sop_id=new_sop.id,
+                step_number=step.get("step_number", 0),
+                title=step.get("title", ""),
+                content=step.get("content", ""),
+            ))
+
+        db.commit()
+        return {
+            "status": "ok",
+            "sop_id": new_sop.id,
+            "steps_count": len(steps_data),
+            "quiz_count": len(quiz_data),
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/orgs/{org_id}/sop-progress")
+def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Дашборд менеджера: матрица сотрудники × СОП."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    _require_manager(org_id, user_key, db)
+
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    sops = db.query(SOP).filter(
+        SOP.org_id == org_id, SOP.status == "published"
+    ).order_by(SOP.created_at).all()
+
+    completions = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id.in_([s.id for s in sops]),
+        SOPCompletion.user_key.in_([m.user_key for m in members]),
+    ).all()
+
+    comp_map = {}
+    for c in completions:
+        comp_map[(c.user_key, c.sop_id)] = c
+
+    matrix = []
+    for m in members:
+        row = {
+            "user_key": m.user_key,
+            "is_manager": m.is_manager,
+            "sops": [],
+        }
+        for s in sops:
+            comp = comp_map.get((m.user_key, s.id))
+            row["sops"].append({
+                "sop_id": s.id,
+                "sop_title": s.title,
+                "completed": comp is not None,
+                "score": comp.score if comp else None,
+                "max_score": comp.max_score if comp else None,
+                "completed_at": comp.completed_at.isoformat() if comp and comp.completed_at else None,
+            })
+        matrix.append(row)
+
+    return {
+        "org_name": org.name,
+        "sops": [{"id": s.id, "title": s.title} for s in sops],
+        "members": matrix,
+    }

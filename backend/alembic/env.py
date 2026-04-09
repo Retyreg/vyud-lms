@@ -7,7 +7,7 @@ from alembic import context
 load_dotenv()
 
 from app.db.base import Base
-from app.models import course, knowledge
+from app.models import course, knowledge, org, document, streak, sop
 
 config = context.config
 if config.config_file_name is not None:
