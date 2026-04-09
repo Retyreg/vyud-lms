@@ -1,18 +1,23 @@
-- # CLAUDE.md — VYUD LMS Project Instruction
+# CLAUDE.md — VYUD SOP Trainer
 
-> Этот файл описывает контекст, стек и соглашения проекта VYUD LMS.
+> Этот файл описывает контекст, стек и соглашения проекта.
 > Читается Claude Code при старте каждой сессии.
 
 ---
 
 ## 1. Что это за проект
 
-**VYUD LMS** — B2B LMS-платформа на базе графа знаний с интерфейсом через Telegram Mini App.
+**VYUD SOP Trainer** — B2B-платформа для быстрого онбординга и контроля знаний СОП (стандартных операционных процедур) через Telegram Mini App.
 
-**Ключевая концепция:** вместо классического конструктора курсов — интерактивный граф знаний на ReactFlow. Пользователь движется по узлам графа, получает AI-объяснения, проходит квизы.
+**Целевой сегмент:** HoReCa, Retail, FMCG, дистрибуция — компании 5–200 человек без собственной LMS.
 
-**Целевой рынок:** IT-команды и стартапы СНГ, 5–200 человек.  
-**GTM-стратегия:** ручные продажи → бесплатный пилот → invoice → автоматизация после 3 клиентов.
+**Ключевой flow:**
+1. Менеджер загружает PDF с инструкцией/СОП
+2. AI разбивает на 5–7 шагов + генерирует 5 вопросов
+3. Сотрудник открывает Telegram → проходит карточки по шагам → мини-тест
+4. Менеджер видит дашборд: кто что прошёл
+
+**GTM:** ручные продажи → бесплатный пилот 2 нед → invoice от 5000₽/мес → автоматизация после 3 клиентов.
 
 **Репозитории:**
 - Backend: `github.com/Retyreg/vyud-lms`
@@ -24,161 +29,121 @@
 
 ### Backend
 | Компонент | Технология |
-|-----------|-----------|
+|-----------|------------|
 | Framework | FastAPI (Python 3.13) |
-| ORM | SQLAlchemy + Alembic (миграции) |
-| Database | Supabase PostgreSQL + pgvector |
-| AI abstraction | LiteLLM |
-| AI providers | Groq/Llama 3.1, Gemini |
-| Auth | Telegram initData validation + Supabase RLS |
+| ORM | SQLAlchemy + Alembic |
+| Database | Supabase PostgreSQL + pgvector (eu-west-1) |
+| AI | LiteLLM — Groq/Llama 3.3 (primary), Gemini (fallback) |
+| Auth | Telegram initData HMAC validation |
+| Deploy | VPS (38.180.229.254:8000) + systemd |
 
-### Frontend
+### Frontend (TMA)
 | Компонент | Технология |
-|-----------|-----------|
-| Framework | Next.js |
-| Graph UI | ReactFlow |
-| Editor | TipTap |
-| Drag & drop | dnd-kit |
-| Deploy | Vercel |
+|-----------|------------|
+| Framework | Vite + React 19 + TypeScript |
+| UI | Inline styles + CSS variables (Telegram theme) |
+| Routing | react-router-dom v7 |
+| Deploy | Vercel (lms.vyud.online) |
 
-## Структура
-- `backend/app/routers/` — эндпоинты
-- `backend/app/services/` — бизнес-логика
-- `backend/app/models/` — SQLAlchemy модели
-- `frontend/components/` — React компоненты
-- `vyud-tma/src/` — Telegram Mini App
 ---
-## Правила кода
-- Все миграции только через Alembic (`make migration`)
-- Auth: всегда через `get_telegram_user` dependency
-- Секреты: только из `os.getenv()`, никогда хардкод
-- Коммиты: атомарные, один коммит = одна задача, максимум 72 символа
-  - Формат: `feat/fix/chore: описание`
-  - Пример: `feat: add SM-2 spaced repetition to knowledge nodes`
-- Тесты: pytest, минимум smoke test на новый эндпоинт
 
-## Что не трогать без явного указания
-- Существующие Alembic миграции
-- ReactFlow core в `frontend/`
-- Supabase RLS политики
-  
-## 3. Схема базы данных
-
-Четыре основные таблицы (миграция: `cc96d0acc729_initial_schema.py`):
+## 3. Реальная структура проекта
 
 ```
-courses          — курсы
-lessons          — уроки внутри курса
-knowledge_nodes  — узлы графа знаний
-knowledge_edges  — связи между узлами
-node_explanations — кэш AI-объяснений узлов (SSE-стриминг)
----
-## 4. Архитектурные решения
-
-### Выполнено (Фаза 1 — технический долг)
-- [x] Alembic миграции вместо ручных скриптов
-- [x] Фикс LiteLLM/Gemini интеграции
-- [x] Telegram initData валидация
-- [x] Supabase RLS включён
-- [x] Секреты удалены из репозитория
-- [x] Убран дублирующий endpoint для mark_node_complete
-
-### В работе (Фаза 2)
-- [ ] AI-объяснение узла графа с SSE-стримингом
-- [ ] Кэширование объяснений в `node_explanations`
-
-### Следующие фичи (приоритет)
-1. **Командный доступ** — `org_id` + инвайт-система
-2. **Дашборд прогресса** — аналитика для менеджера команды
-3. SM-2 алгоритм повторений на узлах
-4. Генерация графа знаний из PDF
-
----
-
-## 5. Соглашения по коду
-
-### API-ключи и конфиги
-- Все секреты — только через `.env` файл
-- GROQ_API_KEY читается **один раз** через `settings` объект
-- Никаких хардкодных ключей в коде
-
-### AI-запросы
-- Всегда через LiteLLM (не прямые httpx вызовы)
-- Провайдеры: `groq/llama-3.1-70b-versatile` (основной), Gemini (fallback)
-- SSE-стриминг для длинных ответов
-
-### Миграции
-```bash
-# Создать новую миграцию
-alembic revision --autogenerate -m "description"
-
-# Применить
-alembic upgrade head
-
-# Откатить
-alembic downgrade -1
-```
-
-### Паттерн прогресса пользователя
-- Прогресс привязан к `user_id` (Telegram ID), не глобальный
-- RLS Supabase обеспечивает изоляцию данных между пользователями
-
----
-
-## 6. Известные проблемы и решения
-
-| Проблема | Решение |
-|----------|---------|
-| Cold start backend (free tier) | Настроить keep-alive ping на cron-job.org |
-| Aider переключается на Anthropic API | `unset ANTHROPIC_API_KEY` перед запуском или `~/.aider.conf.yml` |
-| Supabase email confirmation | Отключено: Auth → Sign In / Providers → Email → Confirm email = OFF |
-
----
-
-## 7. Рабочий процесс с AI-инструментами
-
-```
-claude.ai (планирование)  →  Claude Code / Gemini CLI (реализация) - GitHub Copilot (CI/CD)
-```
-
-**claude.ai** используется для:
-- Архитектурных решений и data model
-- Разбора новых фич перед реализацией
-- Стратегических решений по продукту
-
-**Claude Code / Gemini CLI / GitHub Copilot ** используется для:
-- Прямой реализации по готовому плану
-- Git операций, установки пакетов
-- Дебаггинга конкретных файлов
-
-### Как начать новую сессию в claude.ai
-Claude имеет доступ к истории этого проекта через `recent_chats`. При необходимости восстановить контекст — достаточно сказать "загрузи историю проекта".
-
----
-
-## 8. Структура проекта (backend)
-
-```
-vyud-lms/
-├── alembic/              # Миграции
-│   └── versions/
+vyud-lms/backend/
+├── alembic/versions/        # Миграции (head: e5f6a7b8c9d0)
 ├── app/
-│   ├── api/              # FastAPI роуты
-│   ├── core/             # settings, config
-│   ├── models/           # SQLAlchemy модели
-│   ├── schemas/          # Pydantic схемы
-│   └── services/         # Бизнес-логика, AI-сервисы
-├── .env                  # Не коммитить!
-├── alembic.ini
-└── main.py
+│   ├── auth/
+│   │   ├── dependencies.py  # get_telegram_user dependency
+│   │   └── telegram.py      # HMAC verification
+│   ├── db/
+│   │   └── base.py          # Engine, SessionLocal, Base
+│   ├── models/
+│   │   ├── course.py        # Course, Lesson (legacy)
+│   │   ├── knowledge.py     # KnowledgeNode/Edge/Explanation/SRProgress (legacy)
+│   │   ├── org.py           # Organization, OrgMember (ACTIVE)
+│   │   ├── document.py      # DocumentChunk (legacy)
+│   │   ├── streak.py        # UserStreak (ACTIVE)
+│   │   ├── sop.py           # SOP, SOPStep, SOPCompletion (NEW)
+│   │   └── user.py          # User (DEAD CODE — не используется)
+│   ├── services/
+│   │   ├── pdf.py           # extract_text_from_pdf, chunk_text
+│   │   ├── sm2.py           # SM-2 algorithm (legacy, not used in SOP)
+│   │   └── streak.py        # update_streak, get_streak
+│   └── main.py              # ВСЕ эндпоинты (1225 строк — TODO: разбить на роутеры)
+├── requirements.txt
+└── .env                     # Не коммитить!
+
+vyud-tma/src/
+├── api/lms.ts               # API client (VITE_LMS_URL)
+├── components/
+│   ├── BottomNav.tsx         # Навигация
+│   ├── Layout.tsx            # Shell с header
+│   ├── ProtectedRoute.tsx    # Auth guard
+│   ├── QuestionCard.tsx      # Quiz UI (REUSE для SOP)
+│   └── FileUploader.tsx      # PDF upload
+├── contexts/AuthContext.tsx   # Telegram + Supabase auth
+├── lib/
+│   ├── telegram.ts           # TG WebApp helpers
+│   └── supabase.ts           # Supabase client
+└── pages/
+    ├── SOPListPage.tsx        # Список СОП сотрудника (NEW)
+    ├── SOPPlayerPage.tsx      # Карточки + тест (NEW)
+    ├── ManagerDashboard.tsx   # Прогресс команды (NEW)
+    ├── UploadPage.tsx         # Загрузка PDF (KEEP, adapt for SOP)
+    ├── AuthPage.tsx           # Email auth (KEEP)
+    ├── ProfilePage.tsx        # Профиль (KEEP)
+    ├── TestPlayerPage.tsx     # Quiz player (REUSE pattern)
+    ├── GraphPage.tsx          # Граф знаний (DEPRECATED — убрать из nav)
+    ├── LeaderboardPage.tsx    # Лидерборд (DEPRECATED)
+    ├── TestsPage.tsx          # Список тестов (DEPRECATED)
+    └── HelpPage.tsx           # Помощь (KEEP)
 ```
 
 ---
 
-## 9. Переменные окружения (`.env`)
+## 4. Схема базы данных
 
-```env
-DATABASE_URL=postgresql+asyncpg://...
+### Активные таблицы
+```
+organizations        — команды менеджеров
+org_members          — участники команды (user_key = telegram_id)
+sops                 — СОП (привязан к org_id)
+sop_steps            — шаги СОП (1, 2, 3...)
+sop_completions      — прохождение СОП конкретным сотрудником
+user_streaks         — серии дней активности
+users_credits        — Supabase таблица (auth, credits — legacy)
+```
+
+### Legacy таблицы (не удалять, не использовать в новом коде)
+```
+courses, lessons, knowledge_nodes, knowledge_edges,
+node_explanations, node_sr_progress, document_chunks
+```
+
+---
+
+## 5. Правила кода
+
+- Миграции только через Alembic (`alembic revision --autogenerate -m "..."`)
+- Auth: `get_telegram_user` dependency для защищённых эндпоинтов
+- Секреты: только `os.getenv()`, никогда хардкод
+- Коммиты: атомарные, `feat/fix/chore: описание`, макс 72 символа
+- AI вызовы: через `call_ai()` в main.py (TODO: вынести в services/ai.py)
+- Новые эндпоинты: в main.py (TODO: разбить на роутеры после MVP)
+
+## 6. Что НЕ трогать
+- Существующие Alembic миграции
+- Supabase RLS политики
+- Organization/OrgMember модели (работают, используются)
+- Legacy таблицы — не удалять, просто не использовать
+
+---
+
+## 7. Переменные окружения (.env)
+
+```
+DATABASE_URL=postgresql://...
 SUPABASE_URL=...
 SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_KEY=...
@@ -189,13 +154,26 @@ TELEGRAM_BOT_TOKEN=...
 
 ---
 
-## 10. Роадмап
+## 8. Текущий спринт: VYUD SOP MVP (10 дней)
 
-| Фаза | Статус | Фичи |
-|------|--------|------|
-| 1. Технический долг | ✅ Готово | Alembic, RLS, валидация |
-| 2. B2B-основание | 🔄 В работе | SSE AI, org_id, команды |
-| 3. Learning | ⏳ Следующая | SM-2, PDF→граф |
-| 4. AI-фичи | 📅 Мес. 4–6 | Квизы из PDF, NEO Assistant |
-| 5. Интеграции | 📅 Мес. 7–12 | Teams, Slack, Marketplace |
-| 6. Аналитика | 📅 Мес. 13–18 | Предиктивные алёрты, Revenue Intelligence |
+### День 1-2: Backend — модели + API
+- [ ] Модель SOP, SOPStep, SOPCompletion
+- [ ] Alembic миграция (down_revision = 'e5f6a7b8c9d0')
+- [ ] CRUD: создать SOP, получить SOP, список SOP для org
+- [ ] POST /api/orgs/{id}/sops/upload-pdf → AI → шаги + вопросы
+- [ ] POST /api/sops/{id}/complete → per-user completion
+
+### День 3-5: Frontend — 3 экрана
+- [ ] SOPListPage — сотрудник видит свои СОП
+- [ ] SOPPlayerPage — карточки пошагово + тест
+- [ ] ManagerDashboard — матрица сотрудники × СОП
+
+### День 6-7: Интеграция
+- [ ] Единый VITE_LMS_URL → VPS
+- [ ] SOPList как главная страница (вместо UploadPage)
+- [ ] E2E тест руками
+
+### День 8-10: Демо
+- [ ] Демо-СОП предзагружен
+- [ ] QR-код генерация
+- [ ] Loom-видео / живое демо
