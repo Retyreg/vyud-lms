@@ -1244,7 +1244,7 @@ async def generate_file_quiz(
         r = await client.post(
             f"{supabase_url}/rest/v1/quizzes",
             headers={**sb_headers, "Prefer": "return=minimal"},
-            json={"id": quiz_id, "title": title, "questions": questions, "email": email},
+            json={"id": quiz_id, "title": title, "questions": questions, "owner_email": email},
         )
         if r.status_code not in (200, 201):
             raise HTTPException(status_code=500, detail=f"Supabase error: {r.text}")
