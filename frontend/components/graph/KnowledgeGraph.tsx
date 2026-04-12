@@ -1,0 +1,568 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Background,
+  Controls,
+  Edge,
+  Node,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+import {
+  createOrg,
+  fetchDueNodes,
+  fetchExplanation,
+  fetchGraphData,
+  fetchHealth,
+  fetchOrgProgress,
+  fetchOrgROI,
+  fetchStreak,
+  generateCourse,
+  joinOrg,
+  submitReview,
+  uploadCoursePdf,
+  API_BASE_URL,
+} from '@/lib/api';
+import { storage } from '@/lib/storage';
+import type {
+  ApiEdge,
+  ApiNode,
+  BackendStatus,
+  DashboardData,
+  FlowNode,
+  HealthInfo,
+  ROIData,
+  StreakInfo,
+} from '@/types';
+
+import { ControlPanel } from '@/components/panels/ControlPanel';
+import { DashboardModal } from '@/components/panels/DashboardModal';
+import { ExplanationPanel } from '@/components/panels/ExplanationPanel';
+import { HealthPanel } from '@/components/panels/HealthPanel';
+import { OrgSetupModal } from '@/components/panels/OrgSetupModal';
+import { WizardModal } from '@/components/panels/WizardModal';
+
+const RETRY_MAX_ATTEMPTS = 6;
+const RETRY_BASE_DELAY_MS = 5000;
+const RETRY_MAX_DELAY_MS = 20000;
+
+function buildFlowNodes(nodes: ApiNode[], dueNodeIds: Set<number>) {
+  return nodes.map((node, idx) => ({
+    id: String(node.id),
+    position: { x: idx * 250, y: (node.level || 1) * 150 },
+    data: {
+      label: node.is_completed ? `${node.label} ✅` : node.label,
+      isAvailable: node.is_available,
+    },
+    style: {
+      background: node.is_completed
+        ? '#4ADE80'
+        : dueNodeIds.has(node.id)
+        ? 'white'
+        : node.is_available
+        ? 'white'
+        : '#f3f4f6',
+      border: node.is_completed
+        ? '2px solid #16a34a'
+        : dueNodeIds.has(node.id)
+        ? '2px solid #f59e0b'
+        : node.is_available
+        ? '2px solid #3b82f6'
+        : '2px dashed #ccc',
+      borderRadius: '12px',
+      width: 200,
+      padding: '10px',
+      textAlign: 'center' as const,
+    },
+  }));
+}
+
+function buildFlowEdges(edges: ApiEdge[]) {
+  return edges.map(e => ({
+    id: `e${e.source}-${e.target}`,
+    source: String(e.source),
+    target: String(e.target),
+    animated: true,
+  }));
+}
+
+export function KnowledgeGraph() {
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { fitView } = useReactFlow();
+
+  // Graph / backend state
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading');
+  const [hasNodes, setHasNodes] = useState(false);
+  const [dueNodeIds, setDueNodeIds] = useState<Set<number>>(new Set());
+  const [health, setHealth] = useState<HealthInfo | null>(null);
+
+  // Org / user state
+  const [orgId, setOrgId] = useState<number | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [userKey, setUserKey] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+
+  // AI explanation state
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isCached, setIsCached] = useState(false);
+
+  // Course generation state
+  const [courseTopic, setCourseTopic] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
+
+  // Dashboard state
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [roiData, setRoiData] = useState<ROIData | null>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+  // Streak state
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+
+  // Modal state
+  const [showOrgSetup, setShowOrgSetup] = useState(false);
+  const [wizardStep, setWizardStep] = useState<0 | 1 | 2 | 3>(0);
+  const [wizardOrgId, setWizardOrgId] = useState<number | null>(null);
+  const [wizardInviteCode, setWizardInviteCode] = useState('');
+  const [isWizardGenerating, setIsWizardGenerating] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<string | null>(null);
+
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptRef = useRef(0);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // ── Health ──────────────────────────────────────────────────────────────────
+
+  const loadHealth = useCallback(async () => {
+    try { setHealth(await fetchHealth()); } catch { /* best-effort */ }
+  }, []);
+
+  // ── Graph ───────────────────────────────────────────────────────────────────
+
+  const loadGraph = useCallback(async (isRetry = false) => {
+    if (!isRetry) attemptRef.current = 0;
+    attemptRef.current += 1;
+    const attempt = attemptRef.current;
+
+    setBackendStatus(attempt > 1 ? 'warming' : 'loading');
+
+    try {
+      const currentOrgId = storage.getOrgId();
+      const data = await fetchGraphData(currentOrgId);
+      setBackendStatus('ok');
+      loadHealth();
+
+      if (data?.nodes?.length > 0) {
+        setHasNodes(true);
+        const savedKey = storage.getUserKey();
+        const savedOrgIdNum = currentOrgId;
+
+        if (savedOrgIdNum && savedKey) {
+          fetchDueNodes(savedOrgIdNum, savedKey)
+            .then(ids => setDueNodeIds(new Set(ids)))
+            .catch(() => {});
+        }
+
+        setRfNodes(buildFlowNodes(data.nodes, dueNodeIds));
+        setRfEdges(buildFlowEdges(data.edges));
+        setTimeout(() => fitView({ duration: 800 }), 100);
+      } else {
+        setHasNodes(false);
+      }
+    } catch {
+      if (attempt < RETRY_MAX_ATTEMPTS) {
+        const delay = Math.min(RETRY_BASE_DELAY_MS * attempt, RETRY_MAX_DELAY_MS);
+        setBackendStatus('warming');
+        retryTimerRef.current = setTimeout(() => loadGraph(true), delay);
+      } else {
+        setBackendStatus('error');
+      }
+    }
+  }, [setRfNodes, setRfEdges, fitView, loadHealth, dueNodeIds]);
+
+  // Apply yellow border to due nodes after dueNodeIds updates
+  useEffect(() => {
+    if (dueNodeIds.size === 0) return;
+    setRfNodes(prev =>
+      prev.map(n => {
+        const id = Number(n.id);
+        if (!dueNodeIds.has(id)) return n;
+        const isCompleted = (n.data.label as string).endsWith('✅');
+        if (isCompleted) return n;
+        return { ...n, style: { ...n.style, border: '2px solid #f59e0b' } };
+      }),
+    );
+  }, [dueNodeIds, setRfNodes]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    const savedOrgId = storage.getOrgId();
+    const savedOrgName = storage.getOrgName();
+    const savedKey = storage.getUserKey();
+
+    if (savedKey) {
+      setUserKey(savedKey);
+      fetchStreak(savedKey).then(s => setStreakInfo(s.current_streak > 0 ? s : null)).catch(() => {});
+    }
+
+    if (savedOrgId) {
+      setOrgId(savedOrgId);
+      setOrgName(savedOrgName);
+    } else if (invite) {
+      setInviteCode(invite);
+      setShowOrgSetup(true);
+    } else {
+      setWizardStep(1);
+    }
+
+    loadGraph();
+    return () => { if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Dashboard ───────────────────────────────────────────────────────────────
+
+  const loadDashboard = useCallback(async () => {
+    if (!orgId) return;
+    setIsDashboardLoading(true);
+    try {
+      const [progress, roi] = await Promise.all([
+        fetchOrgProgress(orgId),
+        fetchOrgROI(orgId),
+      ]);
+      setDashboardData(progress);
+      setRoiData(roi);
+    } catch { /* best-effort */ }
+    finally { setIsDashboardLoading(false); }
+  }, [orgId]);
+
+  // ── Node click → explanation ─────────────────────────────────────────────────
+
+  const handleNodeClick = useCallback(async (
+    _: React.MouseEvent,
+    node: Node,
+    regenerate = false,
+  ) => {
+    const data = node.data as FlowNode['data'];
+    if (!data.isAvailable) { alert('Тема заблокирована!'); return; }
+    const id = Number(node.id);
+    setSelectedTopic(data.label);
+    setSelectedNodeId(id);
+    setIsAiLoading(true);
+    setExplanation(null);
+    try {
+      const data = await fetchExplanation(id, regenerate);
+      setExplanation(data.explanation);
+      setIsCached(data.cached);
+    } catch {
+      setExplanation('Ошибка загрузки объяснения. Попробуйте ещё раз.');
+      setIsCached(false);
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, []);
+
+  const handleReview = useCallback(async (quality: 0 | 1 | 2 | 3) => {
+    if (!selectedNodeId) return;
+    const key = storage.getUserKey() || 'anonymous';
+    await submitReview(selectedNodeId, key, quality).catch(() => {});
+    loadGraph();
+    fetchStreak(key).then(s => setStreakInfo(s.current_streak > 0 ? s : null)).catch(() => {});
+    setSelectedTopic(null);
+  }, [selectedNodeId, loadGraph]);
+
+  // ── Course generation ────────────────────────────────────────────────────────
+
+  const handleGenerateCourse = useCallback(async () => {
+    if (!courseTopic.trim() || backendStatus === 'error') return;
+    setIsGenerating(true);
+    try {
+      await generateCourse(courseTopic, orgId, userKey);
+      setCourseTopic('');
+      loadGraph();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка генерации');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [courseTopic, backendStatus, orgId, userKey, loadGraph]);
+
+  const handlePdfUpload = useCallback(async (file: File) => {
+    const savedOrgId = storage.getOrgId();
+    if (!savedOrgId) { alert('Сначала создайте или вступите в организацию'); return; }
+    setIsPdfUploading(true);
+    try {
+      const data = await uploadCoursePdf(savedOrgId, file, courseTopic);
+      loadGraph();
+      showToast(`✅ Граф создан из PDF! ${data.node_count} узлов`);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка загрузки PDF');
+    } finally {
+      setIsPdfUploading(false);
+    }
+  }, [courseTopic, loadGraph]);
+
+  // ── Org management ───────────────────────────────────────────────────────────
+
+  const handleJoinOrg = useCallback(async (key: string) => {
+    try {
+      const data = await joinOrg(inviteCode, key);
+      storage.setOrgId(data.org_id);
+      storage.setOrgName(data.org_name);
+      storage.setUserKey(key);
+      setOrgId(data.org_id);
+      setOrgName(data.org_name);
+      setUserKey(key);
+      setShowOrgSetup(false);
+      loadGraph();
+    } catch { alert('Неверный инвайт-код или ошибка сети.'); }
+  }, [inviteCode, loadGraph]);
+
+  const handleCreateOrg = useCallback(async (name: string, key: string) => {
+    try {
+      const data = await createOrg(name, key);
+      storage.setOrgId(data.org_id);
+      storage.setOrgName(data.org_name);
+      storage.setUserKey(key);
+      setOrgId(data.org_id);
+      setOrgName(data.org_name);
+      setUserKey(key);
+      setShowOrgSetup(false);
+    } catch { alert('Ошибка создания организации'); }
+  }, []);
+
+  const handleCopyInvite = useCallback(async () => {
+    if (!orgId) return;
+    try {
+      const progress = await fetchOrgProgress(orgId);
+      const url = `${window.location.origin}${window.location.pathname}?invite=${progress.invite_code}`;
+      await navigator.clipboard.writeText(url);
+      showToast('✅ Ссылка скопирована!');
+    } catch { alert('Не удалось скопировать'); }
+  }, [orgId]);
+
+  // ── Wizard ───────────────────────────────────────────────────────────────────
+
+  const handleWizardCreateOrg = useCallback(async (name: string, email: string) => {
+    try {
+      const data = await createOrg(name, email);
+      storage.setOrgId(data.org_id);
+      storage.setOrgName(data.org_name);
+      storage.setUserKey(email);
+      setOrgId(data.org_id);
+      setOrgName(data.org_name);
+      setUserKey(email);
+      setWizardOrgId(data.org_id);
+      setWizardStep(2);
+    } catch { alert('Ошибка создания организации'); }
+  }, []);
+
+  const handleWizardGenerateCourse = useCallback(async (topic: string) => {
+    if (!wizardOrgId) return;
+    setIsWizardGenerating(true);
+    try {
+      await generateCourse(topic, wizardOrgId, storage.getUserKey());
+      const progress = await fetchOrgProgress(wizardOrgId);
+      setWizardInviteCode(progress.invite_code ?? '');
+      loadGraph();
+      setWizardStep(3);
+    } catch { alert('Ошибка генерации'); }
+    finally { setIsWizardGenerating(false); }
+  }, [wizardOrgId, loadGraph]);
+
+  const handleWizardPdfUpload = useCallback(async (file: File) => {
+    if (!wizardOrgId) return;
+    setIsWizardGenerating(true);
+    try {
+      await uploadCoursePdf(wizardOrgId, file);
+      const progress = await fetchOrgProgress(wizardOrgId);
+      setWizardInviteCode(progress.invite_code ?? '');
+      loadGraph();
+      setWizardStep(3);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка загрузки PDF');
+    } finally { setIsWizardGenerating(false); }
+  }, [wizardOrgId, loadGraph]);
+
+  // ── Status banner ────────────────────────────────────────────────────────────
+
+  const statusBanner = () => {
+    const base: React.CSSProperties = {
+      position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 20, color: 'white', padding: '10px 20px', borderRadius: 8, fontSize: 14,
+    };
+    if (backendStatus === 'loading')
+      return <div style={{ ...base, background: '#1e293b' }}>⏳ Подключаюсь к серверу...</div>;
+    if (backendStatus === 'warming')
+      return <div style={{ ...base, background: '#92400e' }}>🔄 Сервер просыпается. Подождите ~30 сек...</div>;
+    if (backendStatus === 'error')
+      return (
+        <div style={{ ...base, background: '#7f1d1d', cursor: 'pointer' }} onClick={() => loadGraph()}>
+          ❌ Сервер недоступен. Нажмите, чтобы повторить попытку
+        </div>
+      );
+    if (backendStatus === 'ok' && !hasNodes)
+      return <div style={{ ...base, background: '#1e3a5f' }}>✨ Введите тему выше и нажмите «Создать»!</div>;
+    return null;
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', background: '#f8f9fa' }}>
+      <ControlPanel
+        topic={courseTopic}
+        onTopicChange={setCourseTopic}
+        onGenerate={handleGenerateCourse}
+        onPdfUpload={handlePdfUpload}
+        isGenerating={isGenerating}
+        isPdfUploading={isPdfUploading}
+        backendStatus={backendStatus}
+        streakInfo={streakInfo}
+        orgName={orgName}
+        onShowDashboard={() => { setShowDashboard(true); loadDashboard(); }}
+        onCopyInvite={handleCopyInvite}
+        onCreateOrg={() => setShowOrgSetup(true)}
+      />
+
+      <HealthPanel health={health} onRefresh={() => { loadGraph(); loadHealth(); }} />
+
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        fitView
+      >
+        <Background />
+        <Controls />
+      </ReactFlow>
+
+      {statusBanner()}
+
+      {selectedTopic && (
+        <ExplanationPanel
+          topic={selectedTopic}
+          explanation={explanation}
+          isLoading={isAiLoading}
+          isCached={isCached}
+          nodeId={selectedNodeId}
+          userKey={userKey}
+          onClose={() => setSelectedTopic(null)}
+          onReview={handleReview}
+          onRegenerate={() => {
+            if (selectedNodeId && selectedTopic) {
+              handleNodeClick(
+                {} as React.MouseEvent,
+                {
+                  id: String(selectedNodeId),
+                  position: { x: 0, y: 0 },
+                  data: { label: selectedTopic, isAvailable: true },
+                } as Node,
+                true,
+              );
+            }
+          }}
+        />
+      )}
+
+      {isPdfUploading && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: '32px 48px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)', fontSize: 18, color: '#1e293b',
+          }}>
+            📄 Обрабатываю PDF...
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: '#16a34a', color: 'white', padding: '12px 24px',
+          borderRadius: 10, fontSize: 15, zIndex: 300,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+        }}>
+          {toast}
+        </div>
+      )}
+
+      {showDashboard && (
+        <DashboardModal
+          dashboardData={dashboardData}
+          roiData={roiData}
+          isLoading={isDashboardLoading}
+          onClose={() => setShowDashboard(false)}
+          onRefresh={loadDashboard}
+          onCopyReport={() => {
+            if (!roiData) return;
+            const text = [
+              `VYUD LMS | ${roiData.org_name} | ${new Date().toLocaleDateString('ru-RU')}`,
+              `Команда: ${roiData.total_members} чел | Активных: ${roiData.active_members}`,
+              `Completion Rate: ${roiData.avg_completion_rate.toFixed(1)}%`,
+              `Efficiency Score: ${roiData.onboarding_efficiency_score.toFixed(1)}/100`,
+              roiData.summary,
+            ].join('\n');
+            navigator.clipboard.writeText(text);
+            showToast('✅ Скопировано для отчёта!');
+          }}
+          onCopyInvite={() => {
+            if (!dashboardData) return;
+            const url = `${window.location.origin}${window.location.pathname}?invite=${dashboardData.invite_code}`;
+            navigator.clipboard.writeText(url);
+            showToast('✅ Ссылка скопирована!');
+          }}
+        />
+      )}
+
+      {wizardStep > 0 && (
+        <WizardModal
+          step={wizardStep as 1 | 2 | 3}
+          inviteCode={wizardInviteCode}
+          isGenerating={isWizardGenerating}
+          onClose={() => setWizardStep(0)}
+          onCreateOrg={handleWizardCreateOrg}
+          onGenerateCourse={handleWizardGenerateCourse}
+          onUploadPdf={handleWizardPdfUpload}
+          onFinish={() => setWizardStep(0)}
+          onCopyInvite={() => {
+            const url = `${window.location.origin}?invite=${wizardInviteCode}`;
+            navigator.clipboard.writeText(url);
+            showToast('✅ Ссылка скопирована!');
+          }}
+        />
+      )}
+
+      {showOrgSetup && (
+        <OrgSetupModal
+          inviteCode={inviteCode}
+          onJoin={handleJoinOrg}
+          onCreate={handleCreateOrg}
+          onClose={() => setShowOrgSetup(false)}
+        />
+      )}
+    </div>
+  );
+}
