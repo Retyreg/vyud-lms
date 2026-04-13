@@ -57,7 +57,7 @@ jobs:
             cd /var/www/vyud-lms
             git pull origin main
             cd frontend
-            npm ci --silent
-            NEXT_PUBLIC_API_URL=https://api.vyud.online npm run build
+            npm install --silent
+            NEXT_PUBLIC_API_URL=https://api.vyud.online ./node_modules/.bin/next build
             systemctl restart vyud-lms-frontend
             echo "Frontend deployed: $(date)"
