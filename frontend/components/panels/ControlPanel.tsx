@@ -14,6 +14,7 @@ interface Props {
   streakInfo: StreakInfo | null;
   orgName: string | null;
   onShowDashboard: () => void;
+  onShowSops: () => void;
   onCopyInvite: () => void;
   onCreateOrg: () => void;
 }
@@ -29,6 +30,7 @@ export function ControlPanel({
   streakInfo,
   orgName,
   onShowDashboard,
+  onShowSops,
   onCopyInvite,
   onCreateOrg,
 }: Props) {
@@ -123,6 +125,16 @@ export function ControlPanel({
             }}
           >
             📊 Дашборд
+          </button>
+          <button
+            onClick={onShowSops}
+            style={{
+              marginLeft: 6, fontSize: 11, padding: '2px 8px',
+              background: '#f0fdf4', border: '1px solid #bbf7d0',
+              borderRadius: 4, cursor: 'pointer',
+            }}
+          >
+            📋 СОП
           </button>
         </div>
       ) : (

@@ -61,3 +61,35 @@ export interface StreakInfo {
   last_activity_date: string | null;
   badge: string | null;
 }
+
+export interface SOPListItem {
+  id: number;
+  title: string;
+  description: string | null;
+  status: string;
+  steps_count: number;
+  is_completed: boolean;
+}
+
+export interface SOPStep {
+  step_number: number;
+  title: string;
+  content: string;
+}
+
+export interface SOPQuizQuestion {
+  question: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string;
+}
+
+export interface SOPDetail {
+  id: number;
+  title: string;
+  description: string | null;
+  status: string;
+  steps: SOPStep[];
+  quiz_json: SOPQuizQuestion[] | null;
+  created_at: string | null;
+}

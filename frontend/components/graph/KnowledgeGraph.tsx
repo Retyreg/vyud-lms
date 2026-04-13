@@ -45,6 +45,8 @@ import { DashboardModal } from '@/components/panels/DashboardModal';
 import { ExplanationPanel } from '@/components/panels/ExplanationPanel';
 import { HealthPanel } from '@/components/panels/HealthPanel';
 import { OrgSetupModal } from '@/components/panels/OrgSetupModal';
+import { SOPListModal } from '@/components/panels/SOPListModal';
+import { SOPViewerModal } from '@/components/panels/SOPViewerModal';
 import { WizardModal } from '@/components/panels/WizardModal';
 
 const RETRY_MAX_ATTEMPTS = 6;
@@ -135,6 +137,10 @@ export function KnowledgeGraph() {
   const [wizardOrgId, setWizardOrgId] = useState<number | null>(null);
   const [wizardInviteCode, setWizardInviteCode] = useState('');
   const [isWizardGenerating, setIsWizardGenerating] = useState(false);
+
+  // SOP state
+  const [showSopList, setShowSopList] = useState(false);
+  const [selectedSopId, setSelectedSopId] = useState<number | null>(null);
 
   // Toast
   const [toast, setToast] = useState<string | null>(null);
@@ -438,6 +444,7 @@ export function KnowledgeGraph() {
         streakInfo={streakInfo}
         orgName={orgName}
         onShowDashboard={() => { setShowDashboard(true); loadDashboard(); }}
+        onShowSops={() => setShowSopList(true)}
         onCopyInvite={handleCopyInvite}
         onCreateOrg={() => setShowOrgSetup(true)}
       />
@@ -561,6 +568,27 @@ export function KnowledgeGraph() {
           onJoin={handleJoinOrg}
           onCreate={handleCreateOrg}
           onClose={() => setShowOrgSetup(false)}
+        />
+      )}
+
+      {showSopList && orgId && (
+        <SOPListModal
+          orgId={orgId}
+          userKey={userKey}
+          onClose={() => setShowSopList(false)}
+          onSelectSop={id => { setSelectedSopId(id); setShowSopList(false); }}
+          onToast={showToast}
+        />
+      )}
+
+      {selectedSopId && orgId && (
+        <SOPViewerModal
+          sopId={selectedSopId}
+          userKey={userKey}
+          onClose={() => setSelectedSopId(null)}
+          onCompleted={(_id, score, max) => {
+            showToast(max > 0 ? `✅ СОП пройден! ${score}/${max}` : '✅ СОП отмечен как пройденный');
+          }}
         />
       )}
     </div>

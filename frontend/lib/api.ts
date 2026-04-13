@@ -4,6 +4,8 @@ import type {
   DashboardData,
   HealthInfo,
   ROIData,
+  SOPDetail,
+  SOPListItem,
   StreakInfo,
 } from '@/types';
 
@@ -145,5 +147,50 @@ export async function fetchOrgProgress(orgId: number): Promise<DashboardData & {
 export async function fetchOrgROI(orgId: number): Promise<ROIData> {
   const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/roi`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchOrgSops(orgId: number, userKey: string): Promise<SOPListItem[]> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/orgs/${orgId}/sops?user_key=${encodeURIComponent(userKey)}`,
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchSop(sopId: number): Promise<SOPDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/sops/${sopId}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function completeSop(
+  sopId: number,
+  userKey: string,
+  score: number,
+  maxScore: number,
+): Promise<void> {
+  await fetch(
+    `${API_BASE_URL}/api/sops/${sopId}/complete?user_key=${encodeURIComponent(userKey)}&score=${score}&max_score=${maxScore}`,
+    { method: 'POST' },
+  );
+}
+
+export async function uploadSopPdf(
+  orgId: number,
+  file: File,
+  userKey: string,
+): Promise<{ sop_id: number; steps_count: number; quiz_count: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('user_key', userKey);
+  const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/sops/upload-pdf`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail ?? 'Ошибка загрузки PDF');
+  }
   return res.json();
 }
