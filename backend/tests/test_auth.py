@@ -76,55 +76,13 @@ class TestVerifyTelegramInitData:
 # FastAPI dependency integration tests
 # ---------------------------------------------------------------------------
 
-import types
-import sys
-
-# Stub litellm before importing app modules
-_litellm_stub = types.ModuleType("litellm")
-
-class _MockMessage:
-    content = ""
-
-class _MockChoice:
-    message = _MockMessage()
-
-class _MockCompletion:
-    choices = [_MockChoice()]
-
-_litellm_stub.completion = lambda *a, **kw: _MockCompletion()  # type: ignore[attr-defined]
-sys.modules.setdefault("litellm", _litellm_stub)
-
 from fastapi.testclient import TestClient  # noqa: E402
 import app.main as main_module  # noqa: E402
 from app.auth.dependencies import get_telegram_user  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-from sqlalchemy.pool import StaticPool  # noqa: E402
-from app.db.base import Base  # noqa: E402
-import app.models.course  # noqa: F401
-import app.models.knowledge  # noqa: F401
-
-_TEST_ENGINE = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-_TestSession = sessionmaker(autocommit=False, autoflush=False, bind=_TEST_ENGINE)
-Base.metadata.create_all(bind=_TEST_ENGINE)
-
-
-def _override_db():
-    db = _TestSession()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 # Client WITHOUT Telegram auth bypass — tests real auth behaviour
+# DB override is already wired by conftest.py (shared TEST_ENGINE)
 _AUTH_CLIENT = TestClient(main_module.app, raise_server_exceptions=False)
-# Ensure DB override is present (may already be set by test_api.py)
-main_module.app.dependency_overrides[main_module.get_db] = _override_db
 
 
 class TestTelegramAuthDependency:
@@ -163,7 +121,7 @@ class TestTelegramAuthDependency:
         monkeypatch.setattr(deps, "_BOT_TOKEN", BOT_TOKEN)
         init_data = _make_init_data(_TEST_USER, bot_token=BOT_TOKEN)
         from unittest.mock import AsyncMock, patch
-        with patch("app.main.call_ai", new_callable=AsyncMock) as mock_ai:
+        with patch("app.api.v1.courses.call_ai", new_callable=AsyncMock) as mock_ai:
             mock_ai.return_value = '[{"title": "A", "description": "desc", "list_of_prerequisite_titles": []}]'
             res = _AUTH_CLIENT.post(
                 "/api/courses/generate",
