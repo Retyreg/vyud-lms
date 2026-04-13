@@ -29,6 +29,7 @@ import {
   API_BASE_URL,
 } from '@/lib/api';
 import { storage } from '@/lib/storage';
+import { getTelegramStartParam, getTelegramUser, isTMA } from '@/lib/telegram';
 import type {
   ApiEdge,
   ApiNode,
@@ -142,6 +143,10 @@ export function KnowledgeGraph() {
   const [showSopList, setShowSopList] = useState(false);
   const [selectedSopId, setSelectedSopId] = useState<number | null>(null);
 
+  // TMA state — populated when running inside Telegram Mini App
+  const [tmaManagerKey, setTmaManagerKey] = useState<string | undefined>();
+  const [tmaDisplayName, setTmaDisplayName] = useState<string | undefined>();
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -217,8 +222,26 @@ export function KnowledgeGraph() {
   }, [dueNodeIds, setRfNodes]);
 
   useEffect(() => {
+    // ── Telegram Mini App init ────────────────────────────────────────────────
+    if (isTMA()) {
+      window.Telegram!.WebApp.ready();
+      window.Telegram!.WebApp.expand();
+
+      const tgUser = getTelegramUser();
+      if (tgUser) {
+        const key = String(tgUser.id);
+        storage.setUserKey(key);
+        setUserKey(key);
+        const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ')
+          + (tgUser.username ? ` (@${tgUser.username})` : '');
+        setTmaManagerKey(key);
+        setTmaDisplayName(displayName);
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
-    const invite = params.get('invite');
+    // In TMA, invite code comes via start_param; in browser via ?invite=
+    const invite = getTelegramStartParam() ?? params.get('invite');
     const savedOrgId = storage.getOrgId();
     const savedOrgName = storage.getOrgName();
     const savedKey = storage.getUserKey();
@@ -559,6 +582,8 @@ export function KnowledgeGraph() {
             navigator.clipboard.writeText(url);
             showToast('✅ Ссылка скопирована!');
           }}
+          telegramManagerKey={tmaManagerKey}
+          telegramDisplayName={tmaDisplayName}
         />
       )}
 

@@ -12,6 +12,10 @@ interface Props {
   onUploadPdf: (file: File) => void;
   onFinish: () => void;
   onCopyInvite: () => void;
+  /** When set (TMA mode): hides the email field and uses this value as manager key */
+  telegramManagerKey?: string;
+  /** Display name shown instead of email placeholder in TMA mode */
+  telegramDisplayName?: string;
 }
 
 export function WizardModal({
@@ -24,9 +28,12 @@ export function WizardModal({
   onUploadPdf,
   onFinish,
   onCopyInvite,
+  telegramManagerKey,
+  telegramDisplayName,
 }: Props) {
   const [orgName, setOrgName] = useState('');
   const [email, setEmail] = useState('');
+  const isTMA = !!telegramManagerKey;
   const [topic, setTopic] = useState('');
   const [mode, setMode] = useState<'topic' | 'pdf'>('topic');
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -79,21 +86,32 @@ export function WizardModal({
               placeholder="Название компании *"
               style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10, boxSizing: 'border-box', fontSize: 14 }}
             />
-            <input
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Email менеджера *"
-              type="email"
-              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 20, boxSizing: 'border-box', fontSize: 14 }}
-            />
+            {isTMA ? (
+              <div style={{
+                width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0',
+                marginBottom: 20, boxSizing: 'border-box' as const, fontSize: 14,
+                background: '#f8fafc', color: '#64748b', display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span>✈️</span>
+                <span>{telegramDisplayName ?? 'Telegram пользователь'}</span>
+              </div>
+            ) : (
+              <input
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email менеджера *"
+                type="email"
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 20, boxSizing: 'border-box', fontSize: 14 }}
+              />
+            )}
             <button
-              onClick={() => onCreateOrg(orgName, email)}
-              disabled={!orgName.trim() || !email.trim()}
+              onClick={() => onCreateOrg(orgName, isTMA ? telegramManagerKey! : email)}
+              disabled={!orgName.trim() || (!isTMA && !email.trim())}
               style={{
                 width: '100%', padding: 12, fontSize: 15, fontWeight: 600,
-                background: !orgName.trim() || !email.trim() ? '#94a3b8' : '#3b82f6',
+                background: !orgName.trim() || (!isTMA && !email.trim()) ? '#94a3b8' : '#3b82f6',
                 color: 'white', border: 'none', borderRadius: 8,
-                cursor: !orgName.trim() || !email.trim() ? 'not-allowed' : 'pointer',
+                cursor: !orgName.trim() || (!isTMA && !email.trim()) ? 'not-allowed' : 'pointer',
               }}
             >
               Создать →
