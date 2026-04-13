@@ -273,7 +273,7 @@ export function KnowledgeGraph() {
     setIsDashboardLoading(true);
     try {
       const [progress, roi] = await Promise.all([
-        fetchOrgProgress(orgId),
+        fetchOrgProgress(orgId, userKey),
         fetchOrgROI(orgId),
       ]);
       setDashboardData(progress);
@@ -380,7 +380,7 @@ export function KnowledgeGraph() {
   const handleCopyInvite = useCallback(async () => {
     if (!orgId) return;
     try {
-      const progress = await fetchOrgProgress(orgId);
+      const progress = await fetchOrgProgress(orgId, userKey);
       const url = `${window.location.origin}${window.location.pathname}?invite=${progress.invite_code}`;
       await navigator.clipboard.writeText(url);
       showToast('✅ Ссылка скопирована!');
@@ -408,7 +408,7 @@ export function KnowledgeGraph() {
     setIsWizardGenerating(true);
     try {
       await generateCourse(topic, wizardOrgId, storage.getUserKey());
-      const progress = await fetchOrgProgress(wizardOrgId);
+      const progress = await fetchOrgProgress(wizardOrgId, storage.getUserKey());
       setWizardInviteCode(progress.invite_code ?? '');
       loadGraph();
       setWizardStep(3);
@@ -421,7 +421,7 @@ export function KnowledgeGraph() {
     setIsWizardGenerating(true);
     try {
       await uploadCoursePdf(wizardOrgId, file);
-      const progress = await fetchOrgProgress(wizardOrgId);
+      const progress = await fetchOrgProgress(wizardOrgId, storage.getUserKey());
       setWizardInviteCode(progress.invite_code ?? '');
       loadGraph();
       setWizardStep(3);

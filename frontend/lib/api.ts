@@ -149,8 +149,12 @@ export async function joinOrg(
   return res.json();
 }
 
-export async function fetchOrgProgress(orgId: number): Promise<DashboardData & { invite_code: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress`);
+export async function fetchOrgProgress(
+  orgId: number,
+  userKey?: string,
+): Promise<DashboardData & { invite_code: string }> {
+  const qs = userKey ? `?user_key=${encodeURIComponent(userKey)}` : '';
+  const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/progress${qs}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
