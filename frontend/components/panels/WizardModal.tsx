@@ -35,8 +35,17 @@ export function WizardModal({
   const [email, setEmail] = useState('');
   const isTMA = !!telegramManagerKey;
   const [topic, setTopic] = useState('');
-  const [mode, setMode] = useState<'topic' | 'pdf'>('topic');
+  const [mode, setMode] = useState<'template' | 'topic' | 'pdf'>('template');
   const pdfRef = useRef<HTMLInputElement>(null);
+
+  const TEMPLATES = [
+    { icon: '🏢', label: 'Онбординг сотрудника', topic: 'Онбординг нового сотрудника в компании' },
+    { icon: '💻', label: 'React разработчик', topic: 'React разработка с хуками и TypeScript' },
+    { icon: '🐍', label: 'Python аналитик', topic: 'Python для анализа данных с pandas и numpy' },
+    { icon: '📊', label: 'Продажи B2B', topic: 'Техники продаж в B2B и работа с возражениями' },
+    { icon: '🛒', label: 'Работа с ККМ', topic: 'Работа кассира: ККМ, возвраты, инкассация' },
+    { icon: '📣', label: 'Основы маркетинга', topic: 'Основы digital-маркетинга и продвижения' },
+  ];
 
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}?invite=${inviteCode}` : '';
 
@@ -129,7 +138,7 @@ export function WizardModal({
               Загрузите PDF или введите тему вручную
             </p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              {(['topic', 'pdf'] as const).map(m => (
+              {([['template', '⚡ Шаблон'], ['topic', '✍️ Тема'], ['pdf', '📄 PDF']] as const).map(([m, label]) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -137,13 +146,34 @@ export function WizardModal({
                     flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
                     background: mode === m ? '#3b82f6' : '#f1f5f9',
                     color: mode === m ? 'white' : '#64748b',
-                    cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                    cursor: 'pointer', fontSize: 13, fontWeight: 500,
                   }}
                 >
-                  {m === 'topic' ? '✍️ По теме' : '📄 Из PDF'}
+                  {label}
                 </button>
               ))}
             </div>
+
+            {mode === 'template' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
+                {TEMPLATES.map(t => (
+                  <button
+                    key={t.topic}
+                    onClick={() => { onGenerateCourse(t.topic); }}
+                    disabled={isGenerating}
+                    style={{
+                      padding: '10px 8px', borderRadius: 8,
+                      border: '1px solid #e2e8f0', background: '#f8fafc',
+                      cursor: isGenerating ? 'not-allowed' : 'pointer',
+                      textAlign: 'left', fontSize: 13,
+                    }}
+                  >
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>{t.icon}</div>
+                    <div style={{ color: '#334155', fontWeight: 500 }}>{t.label}</div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {mode === 'topic' ? (
               <>

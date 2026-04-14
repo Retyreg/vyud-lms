@@ -49,6 +49,7 @@ import { OrgSetupModal } from '@/components/panels/OrgSetupModal';
 import { SOPListModal } from '@/components/panels/SOPListModal';
 import { SOPViewerModal } from '@/components/panels/SOPViewerModal';
 import { StreakModal } from '@/components/panels/StreakModal';
+import { OnboardingChecklist } from '@/components/panels/OnboardingChecklist';
 import { WizardModal } from '@/components/panels/WizardModal';
 
 const RETRY_MAX_ATTEMPTS = 6;
@@ -648,6 +649,15 @@ export function KnowledgeGraph() {
           onClose={() => setShowStreak(false)}
         />
       )}
+
+      <OnboardingChecklist
+        orgCreated={!!orgId}
+        courseCreated={hasNodes}
+        nodeCompleted={rfNodes.some(n => (n.data.label as string).endsWith('✅'))}
+        onCopyInvite={handleCopyInvite}
+        onCreateOrg={() => setWizardStep(1)}
+        onGenerateCourse={() => setWizardStep(1)}
+      />
 
       {showSopList && orgId && (
         <SOPListModal
