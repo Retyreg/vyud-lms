@@ -75,6 +75,18 @@ MASTERY_LEVELS = [
 ]
 
 
+def mastery_pct(repetitions: int, easiness_factor: float = 2.5) -> int:
+    """Return mastery as 0-100 integer.
+
+    Each consecutive correct repetition contributes 20 points.
+    EF bonus adds up to 10 points on top for well-retained items.
+    5 repetitions with max EF → 100%.
+    """
+    base = min(100, repetitions * 20)
+    ef_bonus = int((easiness_factor - 1.3) / 1.2 * 10)
+    return min(100, base + ef_bonus)
+
+
 def get_mastery_level(repetitions: int, correct_reviews: int, total_reviews: int) -> str:
     """Human-readable mastery label based on review history."""
     if total_reviews == 0:

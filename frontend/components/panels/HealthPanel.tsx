@@ -79,8 +79,7 @@ export function HealthPanel({ health, onRefresh }: Props) {
                   {health.database_error}
                 </div>
               )}
-              <HealthRow label="AI (Groq)" value={health.ai_groq === 'configured' ? '✅ Настроен' : '⚠️ Не настроен'} />
-              <HealthRow label="AI (Gemini)" value={health.ai_gemini === 'configured' ? '✅ Настроен' : '⚠️ Не настроен'} />
+              <HealthRow label="AI (OpenRouter)" value={health.ai_openrouter === 'configured' ? '✅ Настроен' : '⚠️ Не настроен'} />
               <HealthRow label="Аптайм" value={formatUptime(health.uptime_seconds)} />
             </>
           )}

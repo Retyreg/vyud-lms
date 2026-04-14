@@ -24,10 +24,11 @@ function tmaHeaders(): Record<string, string> {
 
 type GraphData = { nodes: ApiNode[]; edges: ApiEdge[] };
 
-export async function fetchGraphData(orgId: number | null): Promise<GraphData> {
-  const endpoint = orgId
+export async function fetchGraphData(orgId: number | null, userKey?: string): Promise<GraphData> {
+  const base = orgId
     ? `${API_BASE_URL}/api/orgs/${orgId}/courses/latest`
     : `${API_BASE_URL}/api/courses/latest`;
+  const endpoint = userKey ? `${base}?user_key=${encodeURIComponent(userKey)}` : base;
   const res = await fetch(endpoint);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

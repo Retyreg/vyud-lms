@@ -157,7 +157,7 @@ def regenerate_invite(org_id: int, user_key: str, db: Session = Depends(get_db))
 
 
 @router.get("/orgs/{org_id}/courses/latest", response_model=GraphResponse)
-def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
+def get_org_latest_course(org_id: int, user_key: str | None = None, db: Session = Depends(get_db)):
     """Graph of the latest org course."""
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
@@ -165,7 +165,7 @@ def get_org_latest_course(org_id: int, db: Session = Depends(get_db)):
     course = _latest_course_for_org(org_id, db)
     if not course:
         return {"nodes": [], "edges": []}
-    return _build_graph_response(course, db)
+    return _build_graph_response(course, db, user_key=user_key)
 
 
 @router.get("/orgs/{org_id}/progress")

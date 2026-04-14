@@ -8,6 +8,8 @@ class NodeSchema(BaseModel):
     level: int
     is_completed: bool
     is_available: bool
+    mastery_pct: int = 0          # 0-100, based on SM-2 repetitions
+    next_review: str | None = None  # ISO datetime or None
 
 
 class EdgeSchema(BaseModel):

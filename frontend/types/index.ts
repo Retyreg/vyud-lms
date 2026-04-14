@@ -5,8 +5,7 @@ export interface HealthInfo {
   uptime_seconds: number;
   database: 'connected' | 'not_configured' | 'error';
   database_error: string | null;
-  ai_groq: 'configured' | 'not_configured';
-  ai_gemini: 'configured' | 'not_configured';
+  ai_openrouter: 'configured' | 'not_configured';
 }
 
 export interface ApiNode {
@@ -15,6 +14,8 @@ export interface ApiNode {
   level: number;
   is_completed: boolean;
   is_available: boolean;
+  mastery_pct: number;
+  next_review: string | null;
 }
 
 export interface ApiEdge {

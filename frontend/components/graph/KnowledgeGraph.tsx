@@ -89,41 +89,57 @@ function computeTopoColumns(nodes: ApiNode[], edges: ApiEdge[]): Map<number, num
   return col;
 }
 
+/** Map mastery % to a background fill color (only for non-completed nodes). */
+function masteryFill(pct: number): string {
+  if (pct === 0)  return 'white';
+  if (pct < 40)   return '#fffbeb'; // very light yellow
+  if (pct < 70)   return '#fef3c7'; // light amber
+  if (pct < 100)  return '#dcfce7'; // light green
+  return '#4ADE80';                 // full green (same as completed)
+}
+
 function buildFlowNodes(nodes: ApiNode[], dueNodeIds: Set<number>, edges: ApiEdge[] = []) {
   const colMap = computeTopoColumns(nodes, edges);
-  // count how many nodes share each column to stack them vertically
   const colCount = new Map<number, number>();
   return nodes.map((node) => {
     const col = colMap.get(node.id) ?? 0;
     const rowIdx = colCount.get(col) ?? 0;
     colCount.set(col, rowIdx + 1);
+    const pct = node.mastery_pct ?? 0;
+    const labelText = node.is_completed ? `${node.label} ✅` : node.label;
+    const masteryLabel = pct > 0 && !node.is_completed
+      ? `\n${pct}% освоено`
+      : '';
     return {
-    id: String(node.id),
-    position: { x: col * 260, y: rowIdx * 160 },
-    data: {
-      label: node.is_completed ? `${node.label} ✅` : node.label,
-      isAvailable: node.is_available,
-    },
-    style: {
-      background: node.is_completed
-        ? '#4ADE80'
-        : dueNodeIds.has(node.id)
-        ? 'white'
-        : node.is_available
-        ? 'white'
-        : '#f3f4f6',
-      border: node.is_completed
-        ? '2px solid #16a34a'
-        : dueNodeIds.has(node.id)
-        ? '2px solid #f59e0b'
-        : node.is_available
-        ? '2px solid #3b82f6'
-        : '2px dashed #ccc',
-      borderRadius: '12px',
-      width: 200,
-      padding: '10px',
-      textAlign: 'center' as const,
-    },
+      id: String(node.id),
+      position: { x: col * 260, y: rowIdx * 160 },
+      data: {
+        label: labelText + masteryLabel,
+        isAvailable: node.is_available,
+        mastery_pct: pct,
+        next_review: node.next_review,
+      },
+      style: {
+        background: node.is_completed
+          ? '#4ADE80'
+          : dueNodeIds.has(node.id)
+          ? masteryFill(pct)
+          : node.is_available
+          ? masteryFill(pct)
+          : '#f3f4f6',
+        border: node.is_completed
+          ? '2px solid #16a34a'
+          : dueNodeIds.has(node.id)
+          ? '2px solid #f59e0b'
+          : node.is_available
+          ? '2px solid #3b82f6'
+          : '2px dashed #ccc',
+        borderRadius: '12px',
+        width: 200,
+        padding: '10px',
+        textAlign: 'center' as const,
+        whiteSpace: 'pre-line' as const,
+      },
     };
   });
 }
@@ -221,7 +237,8 @@ export function KnowledgeGraph() {
 
     try {
       const currentOrgId = storage.getOrgId();
-      const data = await fetchGraphData(currentOrgId);
+      const currentUserKey = storage.getUserKey() ?? undefined;
+      const data = await fetchGraphData(currentOrgId, currentUserKey);
       setBackendStatus('ok');
       loadHealth();
 
@@ -543,6 +560,8 @@ export function KnowledgeGraph() {
           isCached={isCached}
           nodeId={selectedNodeId}
           userKey={userKey}
+          masteryPct={rfNodes.find(n => n.id === String(selectedNodeId))?.data.mastery_pct as number | undefined}
+          nextReview={rfNodes.find(n => n.id === String(selectedNodeId))?.data.next_review as string | null | undefined}
           onClose={() => setSelectedTopic(null)}
           onReview={handleReview}
           onRegenerate={() => {
