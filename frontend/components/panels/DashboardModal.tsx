@@ -6,10 +6,12 @@ interface Props {
   dashboardData: DashboardData | null;
   roiData: ROIData | null;
   isLoading: boolean;
+  isManager?: boolean;
   onClose: () => void;
   onRefresh: () => void;
   onCopyReport: () => void;
   onCopyInvite: () => void;
+  onShowBrand?: () => void;
 }
 
 function BarChart({ data }: { data: WeekActivity[] }) {
@@ -61,10 +63,12 @@ export function DashboardModal({
   dashboardData,
   roiData,
   isLoading,
+  isManager,
   onClose,
   onRefresh,
   onCopyReport,
   onCopyInvite,
+  onShowBrand,
 }: Props) {
   const inviteUrl = typeof window !== 'undefined' && dashboardData
     ? `${window.location.origin}${window.location.pathname}?invite=${dashboardData.invite_code}`
@@ -94,6 +98,9 @@ export function DashboardModal({
             )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {isManager && onShowBrand && (
+              <button onClick={onShowBrand} style={btnGhost} title="Брендинг">🎨</button>
+            )}
             <button onClick={onRefresh} disabled={isLoading} style={btnGhost}>
               {isLoading ? '⏳' : '🔄'}
             </button>

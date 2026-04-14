@@ -22,6 +22,8 @@ declare global {
         ready(): void;
         expand(): void;
         close(): void;
+        /** Set the Mini App header background color. */
+        setHeaderColor?(color: string): void;
       };
     };
   }

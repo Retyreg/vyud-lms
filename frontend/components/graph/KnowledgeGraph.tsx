@@ -19,6 +19,8 @@ import {
   fetchExplanation,
   fetchGraphData,
   fetchHealth,
+  fetchOrgBrand,
+  fetchOrgInfo,
   fetchOrgProgress,
   fetchOrgROI,
   fetchStreak,
@@ -26,7 +28,7 @@ import {
   joinOrg,
   submitReview,
   uploadCoursePdf,
-  API_BASE_URL,
+  type OrgBrand,
 } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { getTelegramStartParam, getTelegramUser, isTMA } from '@/lib/telegram';
@@ -41,6 +43,7 @@ import type {
   StreakInfo,
 } from '@/types';
 
+import { BrandSettingsModal } from '@/components/panels/BrandSettingsModal';
 import { ControlPanel } from '@/components/panels/ControlPanel';
 import { DashboardModal } from '@/components/panels/DashboardModal';
 import { ExplanationPanel } from '@/components/panels/ExplanationPanel';
@@ -205,6 +208,11 @@ export function KnowledgeGraph() {
   // Streak modal
   const [showStreak, setShowStreak] = useState(false);
 
+  // Brand / white-label
+  const [orgBrand, setOrgBrand] = useState<OrgBrand | null>(null);
+  const [showBrandSettings, setShowBrandSettings] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+
   // TMA state — populated when running inside Telegram Mini App
   const [tmaManagerKey, setTmaManagerKey] = useState<string | undefined>();
   const [tmaDisplayName, setTmaDisplayName] = useState<string | undefined>();
@@ -317,6 +325,12 @@ export function KnowledgeGraph() {
     if (savedOrgId) {
       setOrgId(savedOrgId);
       setOrgName(savedOrgName);
+      loadBrand(savedOrgId);
+      if (savedKey) {
+        fetchOrgInfo(savedOrgId, savedKey)
+          .then(info => setIsManager(info.is_manager))
+          .catch(() => {});
+      }
     } else if (invite) {
       setInviteCode(invite);
       setShowOrgSetup(true);
@@ -327,6 +341,19 @@ export function KnowledgeGraph() {
     loadGraph();
     return () => { if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Brand ───────────────────────────────────────────────────────────────────
+
+  const loadBrand = useCallback(async (id: number) => {
+    try {
+      const brand = await fetchOrgBrand(id);
+      setOrgBrand(brand);
+      // Apply brand color to TMA header if available
+      if (isTMA() && brand.brand_color && window.Telegram?.WebApp?.setHeaderColor) {
+        try { window.Telegram.WebApp.setHeaderColor(brand.brand_color); } catch { /* not supported */ }
+      }
+    } catch { /* best-effort */ }
   }, []);
 
   // ── Dashboard ───────────────────────────────────────────────────────────────
@@ -422,10 +449,12 @@ export function KnowledgeGraph() {
       setOrgId(data.org_id);
       setOrgName(data.org_name);
       setUserKey(key);
+      setIsManager(false);
       setShowOrgSetup(false);
+      loadBrand(data.org_id);
       loadGraph();
     } catch { alert('Неверный инвайт-код или ошибка сети.'); }
-  }, [inviteCode, loadGraph]);
+  }, [inviteCode, loadGraph, loadBrand]);
 
   const handleCreateOrg = useCallback(async (name: string, key: string) => {
     try {
@@ -436,6 +465,7 @@ export function KnowledgeGraph() {
       setOrgId(data.org_id);
       setOrgName(data.org_name);
       setUserKey(key);
+      setIsManager(true);
       setShowOrgSetup(false);
     } catch { alert('Ошибка создания организации'); }
   }, []);
@@ -461,6 +491,7 @@ export function KnowledgeGraph() {
       setOrgId(data.org_id);
       setOrgName(data.org_name);
       setUserKey(email);
+      setIsManager(true);
       setWizardOrgId(data.org_id);
       setWizardStep(2);
     } catch { alert('Ошибка создания организации'); }
@@ -610,6 +641,7 @@ export function KnowledgeGraph() {
           dashboardData={dashboardData}
           roiData={roiData}
           isLoading={isDashboardLoading}
+          isManager={isManager}
           onClose={() => setShowDashboard(false)}
           onRefresh={loadDashboard}
           onCopyReport={() => {
@@ -629,6 +661,25 @@ export function KnowledgeGraph() {
             const url = `${window.location.origin}${window.location.pathname}?invite=${dashboardData.invite_code}`;
             navigator.clipboard.writeText(url);
             showToast('✅ Ссылка скопирована!');
+          }}
+          onShowBrand={() => setShowBrandSettings(true)}
+        />
+      )}
+
+      {showBrandSettings && orgId && (
+        <BrandSettingsModal
+          orgId={orgId}
+          userKey={userKey}
+          orgName={orgName ?? ''}
+          inviteCode={dashboardData?.invite_code ?? ''}
+          initialBrand={orgBrand ?? { brand_color: null, logo_url: null, bot_username: null, display_name: null }}
+          onClose={() => setShowBrandSettings(false)}
+          onSaved={brand => {
+            setOrgBrand(brand);
+            if (isTMA() && brand.brand_color && window.Telegram?.WebApp?.setHeaderColor) {
+              try { window.Telegram.WebApp.setHeaderColor(brand.brand_color); } catch { /* not supported */ }
+            }
+            showToast('✅ Брендинг сохранён!');
           }}
         />
       )}

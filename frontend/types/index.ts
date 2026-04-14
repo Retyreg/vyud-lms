@@ -88,6 +88,13 @@ export interface StreakInfo {
   next_milestone: StreakMilestone | null;
 }
 
+export interface OrgBrand {
+  brand_color: string | null;
+  logo_url: string | null;
+  bot_username: string | null;
+  display_name: string | null;
+}
+
 export interface SOPListItem {
   id: number;
   title: string;

@@ -14,6 +14,12 @@ class Organization(Base):
                          default=lambda: secrets.token_urlsafe(8))
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
+    # White-label branding
+    brand_color   = Column(String, nullable=True)   # hex, e.g. "#3b82f6"
+    logo_url      = Column(String, nullable=True)   # https://...
+    bot_username  = Column(String, nullable=True)   # e.g. "MyCompanyBot"
+    display_name  = Column(String, nullable=True)   # shown in TMA header (falls back to name)
+
     members = relationship("OrgMember", back_populates="org")
 
 

@@ -17,7 +17,7 @@ from app.models.knowledge import KnowledgeEdge, KnowledgeNode, NodeSRProgress
 from app.models.org import OrgMember, Organization
 from app.models.streak import UserStreak
 from app.schemas.graph import CourseGenerationRequest, GraphResponse
-from app.schemas.org import MemberProgress, OrgCreateRequest, OrgInfo, OrgJoinRequest, ROIResponse, WeekActivity
+from app.schemas.org import MemberProgress, OrgBrand, OrgBrandUpdate, OrgCreateRequest, OrgInfo, OrgJoinRequest, ROIResponse, WeekActivity
 from app.services.pdf import build_graph_from_pdf, chunk_text, embed_chunks, extract_text_from_pdf
 from app.services.sm2 import is_due
 
@@ -368,6 +368,50 @@ def get_due_nodes(org_id: int, user_key: str, db: Session = Depends(get_db)):
     due_ids = [nid for nid in node_ids if nid not in reviewed_ids]
 
     return {"due_node_ids": due_ids}
+
+
+@router.get("/orgs/{org_id}/brand", response_model=OrgBrand)
+def get_org_brand(org_id: int, db: Session = Depends(get_db)):
+    """Public endpoint — returns white-label branding for an org."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    return OrgBrand(
+        brand_color=org.brand_color,
+        logo_url=org.logo_url,
+        bot_username=org.bot_username,
+        display_name=org.display_name,
+    )
+
+
+@router.patch("/orgs/{org_id}/brand", response_model=OrgBrand)
+def update_org_brand(
+    org_id: int,
+    body: OrgBrandUpdate,
+    user_key: str,
+    db: Session = Depends(get_db),
+):
+    """Manager-only: update white-label branding fields."""
+    _require_manager(org_id, user_key, db)
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    if body.brand_color is not None:
+        org.brand_color = body.brand_color
+    if body.logo_url is not None:
+        org.logo_url = body.logo_url
+    if body.bot_username is not None:
+        org.bot_username = body.bot_username
+    if body.display_name is not None:
+        org.display_name = body.display_name
+    db.commit()
+    db.refresh(org)
+    return OrgBrand(
+        brand_color=org.brand_color,
+        logo_url=org.logo_url,
+        bot_username=org.bot_username,
+        display_name=org.display_name,
+    )
 
 
 @router.get("/orgs/{org_id}/roi", response_model=ROIResponse)

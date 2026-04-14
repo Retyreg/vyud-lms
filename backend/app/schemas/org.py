@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 
 class OrgCreateRequest(BaseModel):
@@ -30,6 +30,20 @@ class MemberProgress(BaseModel):
 class WeekActivity(BaseModel):
     week_label: str   # e.g. "15 апр"
     reviews: int
+
+
+class OrgBrand(BaseModel):
+    brand_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    bot_username: Optional[str] = None
+    display_name: Optional[str] = None
+
+
+class OrgBrandUpdate(BaseModel):
+    brand_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    bot_username: Optional[str] = None
+    display_name: Optional[str] = None
 
 
 class ROIResponse(BaseModel):

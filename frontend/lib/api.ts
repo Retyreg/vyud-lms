@@ -192,6 +192,47 @@ export async function completeSop(
   );
 }
 
+export interface OrgBrand {
+  brand_color: string | null;
+  logo_url: string | null;
+  bot_username: string | null;
+  display_name: string | null;
+}
+
+export async function fetchOrgInfo(
+  orgId: number,
+  userKey: string,
+): Promise<{ org_id: number; org_name: string; invite_code: string; is_manager: boolean }> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/orgs/${orgId}?user_key=${encodeURIComponent(userKey)}`,
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchOrgBrand(orgId: number): Promise<OrgBrand> {
+  const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/brand`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function updateOrgBrand(
+  orgId: number,
+  userKey: string,
+  brand: Partial<OrgBrand>,
+): Promise<OrgBrand> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/orgs/${orgId}/brand?user_key=${encodeURIComponent(userKey)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...tmaHeaders() },
+      body: JSON.stringify(brand),
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function uploadSopPdf(
   orgId: number,
   file: File,
