@@ -265,13 +265,13 @@ async def upload_pdf(
     chunks = chunk_text(pdf_text)
 
     try:
-        embeddings = await asyncio.wait_for(embed_chunks(chunks), timeout=8.0)
+        embeddings = await asyncio.wait_for(embed_chunks(chunks), timeout=15.0)
     except Exception as e:
         logger.error("Embedding skipped: %s", e)
         embeddings = [None] * len(chunks)
 
     try:
-        nodes_data = await build_graph_from_pdf(chunks, topic, call_ai)
+        nodes_data = await build_graph_from_pdf(chunks, topic, call_ai, embeddings=embeddings)
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
     except Exception as e:
