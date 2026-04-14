@@ -15,6 +15,7 @@ interface Props {
   orgName: string | null;
   onShowDashboard: () => void;
   onShowSops: () => void;
+  onShowStreak: () => void;
   onCopyInvite: () => void;
   onCreateOrg: () => void;
 }
@@ -31,6 +32,7 @@ export function ControlPanel({
   orgName,
   onShowDashboard,
   onShowSops,
+  onShowStreak,
   onCopyInvite,
   onCreateOrg,
 }: Props) {
@@ -88,19 +90,23 @@ export function ControlPanel({
       />
 
       {streakInfo && (
-        <div style={{
-          marginTop: 10, padding: '8px 12px',
-          background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
-        }}>
+        <button
+          onClick={onShowStreak}
+          style={{
+            marginTop: 10, width: '100%', padding: '8px 12px', textAlign: 'left',
+            background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: 14, fontWeight: 600, color: '#c2410c' }}>
             {streakInfo.badge
               ? `${streakInfo.badge} · ${streakInfo.current_streak} дней`
               : `🔥 ${streakInfo.current_streak} дней`}
           </div>
           <div style={{ fontSize: 11, color: '#9a3412', marginTop: 2 }}>
-            Рекорд: {streakInfo.longest_streak} дней
+            Рекорд: {streakInfo.longest_streak} дн. · Всего: {streakInfo.total_days_active} дн.
           </div>
-        </div>
+        </button>
       )}
 
       {orgName ? (

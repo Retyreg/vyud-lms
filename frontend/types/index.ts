@@ -54,12 +54,29 @@ export interface ROIData {
   summary: string;
 }
 
+export interface StreakAchievement {
+  id: string;
+  label: string;
+  type: 'streak' | 'days';
+  threshold: number;
+}
+
+export interface StreakMilestone {
+  label: string;
+  streak_needed?: number;
+  days_needed?: number;
+  days_left: number;
+}
+
 export interface StreakInfo {
   current_streak: number;
   longest_streak: number;
   total_days_active: number;
   last_activity_date: string | null;
   badge: string | null;
+  activity_dates: string[];
+  achievements: StreakAchievement[];
+  next_milestone: StreakMilestone | null;
 }
 
 export interface SOPListItem {

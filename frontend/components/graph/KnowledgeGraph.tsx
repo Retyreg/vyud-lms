@@ -48,6 +48,7 @@ import { HealthPanel } from '@/components/panels/HealthPanel';
 import { OrgSetupModal } from '@/components/panels/OrgSetupModal';
 import { SOPListModal } from '@/components/panels/SOPListModal';
 import { SOPViewerModal } from '@/components/panels/SOPViewerModal';
+import { StreakModal } from '@/components/panels/StreakModal';
 import { WizardModal } from '@/components/panels/WizardModal';
 
 const RETRY_MAX_ATTEMPTS = 6;
@@ -183,6 +184,9 @@ export function KnowledgeGraph() {
   // SOP state
   const [showSopList, setShowSopList] = useState(false);
   const [selectedSopId, setSelectedSopId] = useState<number | null>(null);
+
+  // Streak modal
+  const [showStreak, setShowStreak] = useState(false);
 
   // TMA state — populated when running inside Telegram Mini App
   const [tmaManagerKey, setTmaManagerKey] = useState<string | undefined>();
@@ -509,6 +513,7 @@ export function KnowledgeGraph() {
         orgName={orgName}
         onShowDashboard={() => { setShowDashboard(true); loadDashboard(); }}
         onShowSops={() => setShowSopList(true)}
+        onShowStreak={() => setShowStreak(true)}
         onCopyInvite={handleCopyInvite}
         onCreateOrg={() => setShowOrgSetup(true)}
       />
@@ -634,6 +639,13 @@ export function KnowledgeGraph() {
           onJoin={handleJoinOrg}
           onCreate={handleCreateOrg}
           onClose={() => setShowOrgSetup(false)}
+        />
+      )}
+
+      {showStreak && streakInfo && (
+        <StreakModal
+          streakInfo={streakInfo}
+          onClose={() => setShowStreak(false)}
         />
       )}
 
