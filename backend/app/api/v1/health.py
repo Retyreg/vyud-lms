@@ -37,17 +37,14 @@ def health_check():
 
     uptime_seconds = int(time.time() - _start_time)
 
-    groq_configured = bool(os.getenv("GROQ_API_KEY"))
-    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
-    ai_configured = groq_configured or gemini_configured
+    openrouter_configured = bool(os.getenv("OPENROUTER_API_KEY"))
 
-    overall = "ok" if (db_status == "connected" and ai_configured) else "degraded"
+    overall = "ok" if (db_status == "connected" and openrouter_configured) else "degraded"
 
     return {
         "status": overall,
         "uptime_seconds": uptime_seconds,
         "database": db_status,
         "database_error": db_error,
-        "ai_groq": "configured" if groq_configured else "not_configured",
-        "ai_gemini": "configured" if gemini_configured else "not_configured",
+        "ai_openrouter": "configured" if openrouter_configured else "not_configured",
     }

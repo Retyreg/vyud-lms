@@ -1,77 +1,80 @@
 """
-Low-level AI client: call_ai() for one-shot requests, _stream_explanation() for SSE streaming.
+Low-level AI client via OpenRouter.
 
-Primary provider: Groq (llama-3.3-70b-versatile).
-Fallback provider: Gemini via LiteLLM.
+Single provider for all one-shot and streaming requests.
+OpenRouter is OpenAI-compatible — same JSON format, different base URL.
 """
 import json
 import logging
 import os
 
 import httpx
-from litellm import completion, acompletion as _acompletion
 from sqlalchemy.orm import Session
 
 from app.models.knowledge import NodeExplanation
 
 logger = logging.getLogger(__name__)
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-_GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-_GROQ_MODEL = "llama-3.3-70b-versatile"
-_GEMINI_MODEL = "gemini/gemini-2.0-flash"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
+
+_HEADERS = {
+    "Content-Type": "application/json",
+    "HTTP-Referer": "https://lms.vyud.online",
+    "X-Title": "VYUD LMS",
+}
+
+
+def _auth_headers() -> dict:
+    """Return auth header if key is configured, empty dict otherwise."""
+    if OPENROUTER_API_KEY:
+        return {"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
+    return {}
 
 
 async def call_ai(prompt: str, system: str, json_mode: bool = True) -> str:
-    """Send a prompt to Groq, falling back to Gemini on failure.
+    """Send a prompt to OpenRouter and return the response text.
 
     Args:
         prompt: User message.
         system: System prompt.
-        json_mode: If True, request JSON-object response format from Groq.
+        json_mode: Request JSON-object response format when True.
 
     Returns:
         AI response text.
 
     Raises:
-        RuntimeError: If all providers fail.
+        RuntimeError: If the request fails or key is not configured.
     """
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not set")
+
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": prompt},
     ]
-    try:
-        payload: dict = {
-            "model": _GROQ_MODEL,
-            "messages": messages,
-            "temperature": 0.4,
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
+    payload: dict = {
+        "model": _MODEL,
+        "messages": messages,
+        "temperature": 0.4,
+    }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                _GROQ_CHAT_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=60.0,
-            )
-            if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        logger.error("Groq failed: %s", e)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            _OPENROUTER_URL,
+            headers={**_HEADERS, **_auth_headers()},
+            json=payload,
+            timeout=90.0,
+        )
 
-    # Fallback to Gemini via LiteLLM
-    try:
-        response = completion(model=_GEMINI_MODEL, messages=messages)
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error("Gemini fallback failed: %s", e)
+    if response.status_code != 200:
+        logger.error("OpenRouter error %s: %s", response.status_code, response.text[:300])
+        raise RuntimeError(f"OpenRouter returned {response.status_code}")
 
-    raise RuntimeError("All AI providers unavailable")
+    return response.json()["choices"][0]["message"]["content"]
 
 
 _TUTOR_SYSTEM = (
@@ -86,13 +89,24 @@ _TUTOR_SYSTEM = (
 
 
 async def _stream_explanation(node_id: int, label: str, description: str | None, db: Session):
-    """Async generator: streams Groq SSE chunks, saves full text to cache on finish."""
+    """Async generator: streams OpenRouter SSE chunks, caches full text on finish."""
+    if not OPENROUTER_API_KEY:
+        yield f"data: {json.dumps({'error': 'AI not configured'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+        return
+
     description_part = f"\nКонтекст: {description}" if description else ""
     prompt = f"Объясни концепт '{label}' простым языком для новичка.{description_part}"
     messages = [
         {"role": "system", "content": _TUTOR_SYSTEM},
         {"role": "user", "content": prompt},
     ]
+    payload = {
+        "model": _MODEL,
+        "messages": messages,
+        "temperature": 0.4,
+        "stream": True,
+    }
 
     full_text_parts: list[str] = []
 
@@ -100,18 +114,10 @@ async def _stream_explanation(node_id: int, label: str, description: str | None,
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "POST",
-                _GROQ_CHAT_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": _GROQ_MODEL,
-                    "messages": messages,
-                    "temperature": 0.4,
-                    "stream": True,
-                },
-                timeout=60.0,
+                _OPENROUTER_URL,
+                headers={**_HEADERS, **_auth_headers()},
+                json=payload,
+                timeout=90.0,
             ) as resp:
                 async for line in resp.aiter_lines():
                     if not line.startswith("data: "):
@@ -127,19 +133,12 @@ async def _stream_explanation(node_id: int, label: str, description: str | None,
                         full_text_parts.append(delta)
                         yield f"data: {json.dumps({'text': delta})}\n\n"
     except Exception as e:
-        logger.error("Groq streaming failed: %s", e)
-        # Fallback: non-streaming Gemini
-        try:
-            fallback = await _acompletion(model=_GEMINI_MODEL, messages=messages, temperature=0.4)
-            text = fallback.choices[0].message.content
-            full_text_parts.append(text)
-            yield f"data: {json.dumps({'text': text})}\n\n"
-        except Exception as e2:
-            logger.error("Gemini fallback failed: %s", e2)
-            yield f"data: {json.dumps({'error': 'AI providers unavailable'})}\n\n"
-            return
+        logger.error("OpenRouter streaming failed: %s", e)
+        yield f"data: {json.dumps({'error': 'AI stream error'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+        return
 
-    # Save full explanation to cache
+    # Cache full explanation
     full_text = "".join(full_text_parts)
     if full_text:
         existing = db.query(NodeExplanation).filter(NodeExplanation.node_id == node_id).first()

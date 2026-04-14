@@ -45,26 +45,23 @@ class TestHealthEndpoint:
 
     def test_health_has_required_fields(self):
         body = CLIENT.get("/api/health").json()
-        for field in ("status", "uptime_seconds", "database", "ai_groq", "ai_gemini"):
+        for field in ("status", "uptime_seconds", "database", "ai_openrouter"):
             assert field in body, f"Field '{field}' missing from /api/health response"
 
     def test_health_database_connected_with_sqlite(self):
         assert CLIENT.get("/api/health").json()["database"] == "connected"
 
     def test_health_ai_not_configured_without_env_vars(self, monkeypatch):
-        monkeypatch.delenv("GROQ_API_KEY", raising=False)
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
         body = CLIENT.get("/api/health").json()
-        assert body["ai_groq"] == "not_configured"
-        assert body["ai_gemini"] == "not_configured"
+        assert body["ai_openrouter"] == "not_configured"
 
     def test_health_status_degraded_without_ai(self, monkeypatch):
-        monkeypatch.delenv("GROQ_API_KEY", raising=False)
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
         assert CLIENT.get("/api/health").json()["status"] == "degraded"
 
     def test_health_status_ok_when_ai_configured(self, monkeypatch):
-        monkeypatch.setenv("GROQ_API_KEY", "test-key")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
         assert CLIENT.get("/api/health").json()["status"] == "ok"
 
     def test_health_uptime_is_non_negative(self):
@@ -331,7 +328,8 @@ class TestExplainStream:
             'data: {"choices":[{"delta":{"content":" работает."}}]}',
             "data: [DONE]",
         ]
-        with patch("app.ai.client.httpx.AsyncClient", return_value=_make_httpx_stream_mock(fake_lines)):
+        with patch("app.ai.client.OPENROUTER_API_KEY", "test-key"), \
+             patch("app.ai.client.httpx.AsyncClient", return_value=_make_httpx_stream_mock(fake_lines)):
             res = CLIENT.get(f"/api/explain-stream/{node_id}")
 
         assert res.status_code == 200

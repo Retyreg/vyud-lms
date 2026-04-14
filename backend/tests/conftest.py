@@ -16,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 # ---------------------------------------------------------------------------
 # Remove real service keys from the test environment
 # ---------------------------------------------------------------------------
-for _key in ("DATABASE_URL", "GROQ_API_KEY", "GEMINI_API_KEY"):
+for _key in ("DATABASE_URL", "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY"):
     os.environ.pop(_key, None)
 
 # ---------------------------------------------------------------------------
