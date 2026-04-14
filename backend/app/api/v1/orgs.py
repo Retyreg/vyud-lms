@@ -17,7 +17,7 @@ from app.models.knowledge import KnowledgeEdge, KnowledgeNode, NodeSRProgress
 from app.models.org import OrgMember, Organization
 from app.models.streak import UserStreak
 from app.schemas.graph import CourseGenerationRequest, GraphResponse
-from app.schemas.org import MemberProgress, OrgCreateRequest, OrgInfo, OrgJoinRequest, ROIResponse
+from app.schemas.org import MemberProgress, OrgCreateRequest, OrgInfo, OrgJoinRequest, ROIResponse, WeekActivity
 from app.services.pdf import build_graph_from_pdf, chunk_text, embed_chunks, extract_text_from_pdf
 from app.services.sm2 import is_due
 
@@ -177,24 +177,47 @@ def get_org_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
     _require_manager(org_id, user_key, db)
 
     members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    member_keys = [m.user_key for m in members]
     course = _latest_course_for_org(org_id, db)
 
     total = 0
-    completed = 0
+    node_ids: list[int] = []
     if course:
         all_nodes = db.query(KnowledgeNode).filter(KnowledgeNode.course_id == course.id).all()
         total = len(all_nodes)
-        completed = sum(1 for n in all_nodes if n.is_completed)
+        node_ids = [n.id for n in all_nodes]
+
+    # Per-user SM-2 progress in one query
+    sr_all = []
+    if member_keys and node_ids:
+        sr_all = db.query(NodeSRProgress).filter(
+            NodeSRProgress.user_key.in_(member_keys),
+            NodeSRProgress.node_id.in_(node_ids),
+        ).all()
+
+    from app.services.sm2 import mastery_pct as _mastery_pct
+    streaks = db.query(UserStreak).filter(UserStreak.user_key.in_(member_keys)).all() if member_keys else []
+    streak_map = {s.user_key: s.current_streak for s in streaks}
 
     result = []
     for m in members:
-        pct = round(completed / total * 100, 1) if total > 0 else 0.0
+        user_sr = [r for r in sr_all if r.user_key == m.user_key]
+        reviewed = len({r.node_id for r in user_sr})
+        pct = round(reviewed / total * 100, 1) if total > 0 else 0.0
+        avg_mastery = (
+            round(sum(_mastery_pct(r.repetitions, r.easiness_factor) for r in user_sr) / len(user_sr))
+            if user_sr else 0
+        )
         result.append(MemberProgress(
             user_key=m.user_key,
-            completed_count=completed,
+            completed_count=reviewed,
             total_count=total,
             percent=pct,
+            avg_mastery_pct=avg_mastery,
+            current_streak=streak_map.get(m.user_key, 0),
         ))
+
+    result.sort(key=lambda x: x.percent, reverse=True)
     return {
         "org_name": org.name,
         "invite_code": org.invite_code,
@@ -435,6 +458,22 @@ def get_org_roi(org_id: int, db: Session = Depends(get_db)):
             f"участников начали обучение."
         )
 
+    # Weekly activity — count reviews per week for last 5 weeks
+    from datetime import date, timedelta
+    MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]
+    today = date.today()
+    weekly_activity: list[WeekActivity] = []
+    for weeks_back in range(4, -1, -1):
+        week_start = today - timedelta(days=today.weekday() + weeks_back * 7)
+        week_end = week_start + timedelta(days=6)
+        count = sum(
+            1 for r in sr_records
+            if r.last_reviewed is not None
+            and week_start <= r.last_reviewed.date() <= week_end
+        )
+        label = f"{week_start.day} {MONTHS_RU[week_start.month - 1]}"
+        weekly_activity.append(WeekActivity(week_label=label, reviews=count))
+
     return ROIResponse(
         org_name=org.name,
         total_members=total_members,
@@ -447,4 +486,5 @@ def get_org_roi(org_id: int, db: Session = Depends(get_db)):
         avg_streak=avg_streak,
         onboarding_efficiency_score=onboarding_efficiency_score,
         summary=summary,
+        weekly_activity=weekly_activity,
     )

@@ -33,12 +33,19 @@ export interface MemberProgress {
   completed_count: number;
   total_count: number;
   percent: number;
+  avg_mastery_pct: number;
+  current_streak: number;
 }
 
 export interface DashboardData {
   org_name: string;
   invite_code: string;
   members: MemberProgress[];
+}
+
+export interface WeekActivity {
+  week_label: string;
+  reviews: number;
 }
 
 export interface ROIData {
@@ -53,6 +60,7 @@ export interface ROIData {
   avg_streak: number;
   onboarding_efficiency_score: number;
   summary: string;
+  weekly_activity: WeekActivity[];
 }
 
 export interface StreakAchievement {

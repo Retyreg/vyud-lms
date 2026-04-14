@@ -23,6 +23,13 @@ class MemberProgress(BaseModel):
     completed_count: int
     total_count: int
     percent: float
+    avg_mastery_pct: int = 0      # average SM-2 mastery across reviewed nodes
+    current_streak: int = 0
+
+
+class WeekActivity(BaseModel):
+    week_label: str   # e.g. "15 апр"
+    reviews: int
 
 
 class ROIResponse(BaseModel):
@@ -37,3 +44,4 @@ class ROIResponse(BaseModel):
     avg_streak: float
     onboarding_efficiency_score: float
     summary: str
+    weekly_activity: list[WeekActivity] = []
