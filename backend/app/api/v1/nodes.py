@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.client import _stream_explanation, call_ai
 from app.core.deps import get_db
+from app.models.course import Course
 from app.models.knowledge import KnowledgeEdge, KnowledgeNode, NodeExplanation, NodeSRProgress
 from app.schemas.sr import CompleteRequest, ReviewRequest
 from app.services.sm2 import calculate_next_interval, get_mastery_level, is_due, next_review_date
@@ -14,6 +15,17 @@ from app.services.streak import update_streak
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["nodes"])
+
+
+def _build_explanation_prompt(node: KnowledgeNode, db) -> str:
+    """Build a context-rich prompt so the AI knows which course/domain this node belongs to."""
+    course = db.query(Course).filter(Course.id == node.course_id).first() if node.course_id else None
+    course_part = f"\nКурс: «{course.title}»" if course else ""
+    description_part = f"\nОписание узла: {node.description}" if node.description else ""
+    return (
+        f"Объясни концепт «{node.label}» простым языком для новичка."
+        f"{course_part}{description_part}"
+    )
 
 # Maps 4-button UI rating (0-3) to SM-2 quality (0-5)
 _QUALITY_MAP = {0: 0, 1: 2, 2: 4, 3: 5}
@@ -45,8 +57,7 @@ async def explain_node(node_id: int, regenerate: bool = False, db: Session = Dep
         if cached:
             return {"explanation": cached.explanation, "cached": True}
 
-    description_part = f"\nКонтекст: {node.description}" if node.description else ""
-    prompt = f"Объясни концепт '{node.label}' простым языком для новичка.{description_part}"
+    prompt = _build_explanation_prompt(node, db)
 
     try:
         explanation = await call_ai(prompt, _TUTOR_SYSTEM, json_mode=False)
@@ -89,8 +100,12 @@ async def explain_node_stream(node_id: int, regenerate: bool = False, db: Sessio
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
 
+    course = db.query(Course).filter(Course.id == node.course_id).first() if node.course_id else None
     return StreamingResponse(
-        _stream_explanation(node_id, node.label, node.description, db),
+        _stream_explanation(
+            node_id, node.label, node.description, db,
+            course_title=course.title if course else None,
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

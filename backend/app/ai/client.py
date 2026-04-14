@@ -88,15 +88,22 @@ _TUTOR_SYSTEM = (
 )
 
 
-async def _stream_explanation(node_id: int, label: str, description: str | None, db: Session):
+async def _stream_explanation(
+    node_id: int,
+    label: str,
+    description: str | None,
+    db: Session,
+    course_title: str | None = None,
+):
     """Async generator: streams OpenRouter SSE chunks, caches full text on finish."""
     if not OPENROUTER_API_KEY:
         yield f"data: {json.dumps({'error': 'AI not configured'})}\n\n"
         yield f"data: {json.dumps({'done': True})}\n\n"
         return
 
-    description_part = f"\nКонтекст: {description}" if description else ""
-    prompt = f"Объясни концепт '{label}' простым языком для новичка.{description_part}"
+    course_part = f"\nКурс: «{course_title}»" if course_title else ""
+    description_part = f"\nОписание узла: {description}" if description else ""
+    prompt = f"Объясни концепт «{label}» простым языком для новичка.{course_part}{description_part}"
     messages = [
         {"role": "system", "content": _TUTOR_SYSTEM},
         {"role": "user", "content": prompt},
