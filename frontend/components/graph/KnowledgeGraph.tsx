@@ -54,10 +54,50 @@ const RETRY_MAX_ATTEMPTS = 6;
 const RETRY_BASE_DELAY_MS = 5000;
 const RETRY_MAX_DELAY_MS = 20000;
 
-function buildFlowNodes(nodes: ApiNode[], dueNodeIds: Set<number>) {
-  return nodes.map((node, idx) => ({
+/** Compute x-column for each node via topological BFS over prerequisite edges. */
+function computeTopoColumns(nodes: ApiNode[], edges: ApiEdge[]): Map<number, number> {
+  // incoming edge count and adjacency (source → targets)
+  const inDegree = new Map<number, number>(nodes.map(n => [n.id, 0]));
+  const adj = new Map<number, number[]>(nodes.map(n => [n.id, []]));
+  for (const e of edges) {
+    inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
+    adj.get(e.source)?.push(e.target);
+  }
+  const col = new Map<number, number>();
+  const queue: number[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) { queue.push(id); col.set(id, 0); }
+  }
+  while (queue.length) {
+    const id = queue.shift()!;
+    const c = col.get(id) ?? 0;
+    for (const next of (adj.get(id) ?? [])) {
+      col.set(next, Math.max(col.get(next) ?? 0, c + 1));
+      const deg = (inDegree.get(next) ?? 1) - 1;
+      inDegree.set(next, deg);
+      if (deg === 0) queue.push(next);
+    }
+  }
+  // fallback for any node not reached (disconnected)
+  let maxCol = 0;
+  for (const c of col.values()) maxCol = Math.max(maxCol, c);
+  for (const n of nodes) {
+    if (!col.has(n.id)) col.set(n.id, ++maxCol);
+  }
+  return col;
+}
+
+function buildFlowNodes(nodes: ApiNode[], dueNodeIds: Set<number>, edges: ApiEdge[] = []) {
+  const colMap = computeTopoColumns(nodes, edges);
+  // count how many nodes share each column to stack them vertically
+  const colCount = new Map<number, number>();
+  return nodes.map((node) => {
+    const col = colMap.get(node.id) ?? 0;
+    const rowIdx = colCount.get(col) ?? 0;
+    colCount.set(col, rowIdx + 1);
+    return {
     id: String(node.id),
-    position: { x: idx * 250, y: (node.level || 1) * 150 },
+    position: { x: col * 260, y: rowIdx * 160 },
     data: {
       label: node.is_completed ? `${node.label} ✅` : node.label,
       isAvailable: node.is_available,
@@ -82,7 +122,8 @@ function buildFlowNodes(nodes: ApiNode[], dueNodeIds: Set<number>) {
       padding: '10px',
       textAlign: 'center' as const,
     },
-  }));
+    };
+  });
 }
 
 function buildFlowEdges(edges: ApiEdge[]) {
@@ -190,7 +231,7 @@ export function KnowledgeGraph() {
             .catch(() => {});
         }
 
-        setRfNodes(buildFlowNodes(data.nodes, dueNodeIds));
+        setRfNodes(buildFlowNodes(data.nodes, dueNodeIds, data.edges));
         setRfEdges(buildFlowEdges(data.edges));
         setTimeout(() => fitView({ duration: 800 }), 100);
       } else {
