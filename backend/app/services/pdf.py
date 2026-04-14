@@ -1,3 +1,5 @@
+import os
+
 import fitz  # PyMuPDF
 import litellm
 
@@ -20,7 +22,10 @@ def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str
     return chunks
 
 
-async def embed_chunks(chunks: list[str]) -> list[list[float]]:
+async def embed_chunks(chunks: list[str]) -> list[list[float] | None]:
+    """Embed text chunks via OpenAI. Returns list of None if key not configured."""
+    if not os.getenv("OPENAI_API_KEY"):
+        return [None] * len(chunks)
     response = await litellm.aembedding(model="text-embedding-3-small", input=chunks)
     return [item["embedding"] for item in response.data]
 

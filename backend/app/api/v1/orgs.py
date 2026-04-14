@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import math
 import secrets
@@ -264,9 +265,9 @@ async def upload_pdf(
     chunks = chunk_text(pdf_text)
 
     try:
-        embeddings = await embed_chunks(chunks)
+        embeddings = await asyncio.wait_for(embed_chunks(chunks), timeout=8.0)
     except Exception as e:
-        logger.error("Embedding failed: %s", e)
+        logger.error("Embedding skipped: %s", e)
         embeddings = [None] * len(chunks)
 
     try:
