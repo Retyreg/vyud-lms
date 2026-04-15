@@ -8,7 +8,7 @@ from app.ai.client import _stream_explanation, call_ai
 from app.core.deps import get_db
 from app.models.course import Course
 from app.models.knowledge import KnowledgeEdge, KnowledgeNode, NodeExplanation, NodeSRProgress
-from app.schemas.sr import CompleteRequest, ReviewRequest
+from app.schemas.sr import AskRequest, CompleteRequest, ReviewRequest
 from app.services.sm2 import calculate_next_interval, get_mastery_level, is_due, next_review_date
 from app.services.streak import update_streak
 
@@ -31,13 +31,20 @@ def _build_explanation_prompt(node: KnowledgeNode, db) -> str:
 _QUALITY_MAP = {0: 0, 1: 2, 2: 4, 3: 5}
 
 _TUTOR_SYSTEM = (
-    "Ты AI-тьютор платформы VYUD. Правила: "
-    "начни с ключевой идеи (1-2 предложения), "
-    "приведи конкретный пример из жизни, "
-    "объясни почему это важно знать. "
-    "Максимум 120 слов. "
+    "Ты AI-тьютор платформы VYUD. Отвечай строго в формате трёх блоков:\n"
+    "📌 Суть: [1-2 предложения — ключевая идея]\n"
+    "💼 Кейс: [конкретный реальный пример из бизнеса или жизни]\n"
+    "🎯 Почему важно: [1 предложение — зачем это знать]\n"
+    "Максимум 130 слов суммарно. "
     "Не используй слова 'данный', 'следует отметить'. "
     "Отвечай сразу — без вводных фраз типа 'Конечно!' или 'Отличный вопрос!'."
+)
+
+_ASK_SYSTEM = (
+    "Ты AI-тьютор платформы VYUD. Пользователь уже прочитал объяснение темы "
+    "и задаёт уточняющий вопрос о том, как это применяется в его сфере. "
+    "Отвечай конкретно и практично — приведи 1-2 примера из указанной сферы. "
+    "Максимум 100 слов. Без вводных фраз. Без воды."
 )
 
 
@@ -109,6 +116,30 @@ async def explain_node_stream(node_id: int, regenerate: bool = False, db: Sessio
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/nodes/{node_id}/ask")
+async def ask_node(node_id: int, request: AskRequest, db: Session = Depends(get_db)):
+    """Answer a follow-up question about a node concept in the context of a specific industry."""
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    course = db.query(Course).filter(Course.id == node.course_id).first() if node.course_id else None
+    course_part = f" в курсе «{course.title}»" if course else ""
+    industry_part = f" применительно к сфере «{request.industry}»" if request.industry else ""
+
+    prompt = (
+        f"Тема: «{node.label}»{course_part}.\n"
+        f"Вопрос{industry_part}: {request.question}"
+    )
+
+    try:
+        answer = await call_ai(prompt, _ASK_SYSTEM, json_mode=False)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI providers unavailable. Try again later.")
+
+    return {"answer": answer}
 
 
 @router.post("/nodes/{node_id}/complete")

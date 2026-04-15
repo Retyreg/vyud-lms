@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class ReviewRequest(BaseModel):
@@ -8,3 +9,8 @@ class ReviewRequest(BaseModel):
 
 class CompleteRequest(BaseModel):
     user_key: str = ""
+
+
+class AskRequest(BaseModel):
+    question: str
+    industry: Optional[str] = None  # e.g. "IT", "Продажи", "HR"

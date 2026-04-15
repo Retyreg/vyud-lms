@@ -55,6 +55,20 @@ export async function fetchStreak(userKey: string): Promise<StreakInfo> {
   return res.json();
 }
 
+export async function fetchNodeAsk(
+  nodeId: number,
+  question: string,
+  industry?: string,
+): Promise<{ answer: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/nodes/${nodeId}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...tmaHeaders() },
+    body: JSON.stringify({ question, industry: industry ?? null }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function fetchExplanation(
   nodeId: number,
   regenerate = false,
