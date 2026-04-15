@@ -247,6 +247,22 @@ export async function updateOrgBrand(
   return res.json();
 }
 
+export async function submitFeedback(data: {
+  user_key?: string;
+  rating?: number;
+  liked?: string;
+  missing?: string;
+  feature?: string;
+  contact?: string;
+  page?: string;
+}): Promise<void> {
+  await fetch(`${API_BASE_URL}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...tmaHeaders() },
+    body: JSON.stringify(data),
+  });
+}
+
 export async function uploadSopPdf(
   orgId: number,
   file: File,

@@ -44,6 +44,7 @@ import type {
 } from '@/types';
 
 import { BrandSettingsModal } from '@/components/panels/BrandSettingsModal';
+import { FeedbackWidget } from '@/components/panels/FeedbackWidget';
 import { WelcomeTourModal } from '@/components/panels/WelcomeTourModal';
 import { ControlPanel } from '@/components/panels/ControlPanel';
 import { DashboardModal } from '@/components/panels/DashboardModal';
@@ -729,6 +730,8 @@ export function KnowledgeGraph() {
           onClose={() => setShowStreak(false)}
         />
       )}
+
+      <FeedbackWidget userKey={userKey || undefined} />
 
       <OnboardingChecklist
         orgCreated={!!orgId}
