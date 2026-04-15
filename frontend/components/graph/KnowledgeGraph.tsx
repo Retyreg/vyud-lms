@@ -44,6 +44,7 @@ import type {
 } from '@/types';
 
 import { BrandSettingsModal } from '@/components/panels/BrandSettingsModal';
+import { WelcomeTourModal } from '@/components/panels/WelcomeTourModal';
 import { ControlPanel } from '@/components/panels/ControlPanel';
 import { DashboardModal } from '@/components/panels/DashboardModal';
 import { ExplanationPanel } from '@/components/panels/ExplanationPanel';
@@ -213,6 +214,9 @@ export function KnowledgeGraph() {
   const [showBrandSettings, setShowBrandSettings] = useState(false);
   const [isManager, setIsManager] = useState(false);
 
+  // Welcome tour
+  const [showTour, setShowTour] = useState(false);
+
   // TMA state — populated when running inside Telegram Mini App
   const [tmaManagerKey, setTmaManagerKey] = useState<string | undefined>();
   const [tmaDisplayName, setTmaDisplayName] = useState<string | undefined>();
@@ -308,6 +312,11 @@ export function KnowledgeGraph() {
         setTmaManagerKey(key);
         setTmaDisplayName(displayName);
       }
+    }
+
+    // Show welcome tour once to new visitors
+    if (!localStorage.getItem('vyud_tour_seen')) {
+      setShowTour(true);
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -565,6 +574,7 @@ export function KnowledgeGraph() {
         onShowStreak={() => setShowStreak(true)}
         onCopyInvite={handleCopyInvite}
         onCreateOrg={() => setShowOrgSetup(true)}
+        onShowTour={() => setShowTour(true)}
       />
 
       <HealthPanel health={health} onRefresh={() => { loadGraph(); loadHealth(); }} />
@@ -736,6 +746,20 @@ export function KnowledgeGraph() {
           onClose={() => setShowSopList(false)}
           onSelectSop={id => { setSelectedSopId(id); setShowSopList(false); }}
           onToast={showToast}
+        />
+      )}
+
+      {showTour && (
+        <WelcomeTourModal
+          onClose={() => {
+            setShowTour(false);
+            localStorage.setItem('vyud_tour_seen', '1');
+          }}
+          onStartWizard={() => {
+            setShowTour(false);
+            localStorage.setItem('vyud_tour_seen', '1');
+            setWizardStep(1);
+          }}
         />
       )}
 

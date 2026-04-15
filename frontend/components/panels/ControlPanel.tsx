@@ -18,6 +18,7 @@ interface Props {
   onShowStreak: () => void;
   onCopyInvite: () => void;
   onCreateOrg: () => void;
+  onShowTour: () => void;
 }
 
 export function ControlPanel({
@@ -35,6 +36,7 @@ export function ControlPanel({
   onShowStreak,
   onCopyInvite,
   onCreateOrg,
+  onShowTour,
 }: Props) {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const isBlocked = backendStatus === 'loading' || backendStatus === 'warming';
@@ -45,39 +47,59 @@ export function ControlPanel({
       background: 'white', padding: 20, borderRadius: 12,
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     }}>
-      <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 16, color: '#1e293b' }}>🎓 VYUD LMS</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1e293b' }}>🎓 VYUD LMS</div>
+        <button
+          onClick={onShowTour}
+          title="Как пользоваться?"
+          style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: '#f1f5f9', border: '1px solid #e2e8f0',
+            cursor: 'pointer', fontSize: 12, color: '#64748b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, flexShrink: 0,
+          }}
+        >?</button>
+      </div>
 
-      <input
-        value={topic}
-        onChange={(e) => onTopicChange(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && onGenerate()}
-        placeholder="Тема курса (напр. Python, React...)"
-        style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, marginRight: 10, width: 220 }}
-      />
-      <button
-        onClick={onGenerate}
-        disabled={isGenerating || isBlocked}
-        style={{
-          padding: '8px 16px',
-          background: isGenerating || isBlocked ? '#94a3b8' : '#3b82f6',
-          color: 'white', border: 'none', borderRadius: 6,
-          cursor: isGenerating || isBlocked ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {isGenerating ? 'Генерация...' : 'Создать'}
-      </button>
-      <button
-        onClick={() => pdfInputRef.current?.click()}
-        disabled={isPdfUploading}
-        style={{
-          marginLeft: 8, padding: '8px 12px',
-          background: isPdfUploading ? '#94a3b8' : '#f59e0b',
-          color: 'white', border: 'none', borderRadius: 6,
-          cursor: isPdfUploading ? 'not-allowed' : 'pointer',
-        }}
-      >
-        📄 PDF
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <input
+          value={topic}
+          onChange={(e) => onTopicChange(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && onGenerate()}
+          placeholder="Тема курса (напр. Python, React...)"
+          title="Введите тему — AI построит граф знаний за ~30 сек"
+          style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, width: 200 }}
+        />
+        <button
+          onClick={onGenerate}
+          disabled={isGenerating || isBlocked}
+          title="Сгенерировать граф знаний по теме с помощью AI"
+          style={{
+            padding: '8px 16px',
+            background: isGenerating || isBlocked ? '#94a3b8' : '#3b82f6',
+            color: 'white', border: 'none', borderRadius: 6,
+            cursor: isGenerating || isBlocked ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {isGenerating ? 'Генерация...' : 'Создать'}
+        </button>
+        <button
+          onClick={() => pdfInputRef.current?.click()}
+          disabled={isPdfUploading}
+          title="Загрузить PDF — AI извлечёт темы и создаст граф из документа"
+          style={{
+            padding: '8px 12px',
+            background: isPdfUploading ? '#94a3b8' : '#f59e0b',
+            color: 'white', border: 'none', borderRadius: 6,
+            cursor: isPdfUploading ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          📄 PDF
+        </button>
+      </div>
       <input
         ref={pdfInputRef}
         type="file"
@@ -114,6 +136,7 @@ export function ControlPanel({
           Org: <strong>{orgName}</strong>
           <button
             onClick={onCopyInvite}
+            title="Скопировать ссылку для приглашения сотрудников в организацию"
             style={{
               marginLeft: 8, fontSize: 11, padding: '2px 8px',
               background: '#f1f5f9', border: '1px solid #e2e8f0',
@@ -124,6 +147,7 @@ export function ControlPanel({
           </button>
           <button
             onClick={onShowDashboard}
+            title="Прогресс команды, лидерборд, ROI-метрики"
             style={{
               marginLeft: 6, fontSize: 11, padding: '2px 8px',
               background: '#eff6ff', border: '1px solid #bfdbfe',
@@ -134,6 +158,7 @@ export function ControlPanel({
           </button>
           <button
             onClick={onShowSops}
+            title="Стандартные операционные процедуры — загрузите регламент PDF, система создаст тест"
             style={{
               marginLeft: 6, fontSize: 11, padding: '2px 8px',
               background: '#f0fdf4', border: '1px solid #bbf7d0',
