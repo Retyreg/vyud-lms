@@ -10,7 +10,7 @@ import type {
 } from '@/types';
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://vyud-lms-backend.onrender.com';
+  process.env.NEXT_PUBLIC_API_URL || 'http://38.180.229.254:8000';
 
 /**
  * Returns X-Init-Data header when running inside Telegram Mini App.
