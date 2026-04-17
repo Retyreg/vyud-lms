@@ -41,3 +41,10 @@ build/
 node_modules/
 .next/
 out/
+
+# Archives should not be in the repo
+*.zip
+
+# Local working folders — not tracked
+Marketing/
+Road Map/
