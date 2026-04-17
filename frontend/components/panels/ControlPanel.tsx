@@ -97,7 +97,7 @@ export function ControlPanel({
             whiteSpace: 'nowrap',
           }}
         >
-          📄 PDF
+          {isPdfUploading ? '⏳ Загружаю...' : '📄 PDF'}
         </button>
       </div>
       <input
