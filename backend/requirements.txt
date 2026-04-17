@@ -1,7 +1,18 @@
 fastapi
 uvicorn[standard]
+httpx
 litellm
 sqlalchemy
 psycopg2-binary
 pydantic
 python-dotenv
+alembic
+pymupdf
+pgvector
+python-multipart
+openai
+
+# Testing
+pytest
+pytest-asyncio
+anyio[trio]

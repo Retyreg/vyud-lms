@@ -7,6 +7,10 @@
 
 **VYUD SOP Trainer** — Telegram Mini App: менеджер загружает PDF с регламентом (SOP), AI извлекает шаги и генерирует квиз, сотрудник проходит обучение в Telegram, менеджер видит completion в дашборде. ЦА: HoReCa, Retail, FMCG. Цена: 5,000₽/мес после 2-недельного пилота. Это **не LMS** — нет модулей, курсов, видео. **Северная звезда:** за 5 минут от PDF к первому сотруднику, прошедшему квиз.
 
+**GTM:** ручные продажи → бесплатный пилот 2 нед → invoice от 5000₽/мес → автоматизация после 3 клиентов.
+
+**Репозитории:** Backend: `github.com/Retyreg/vyud-lms` · Frontend TMA: `github.com/Retyreg/vyud-tma`
+
 ## Session Start Checklist
 
 ```bash
@@ -23,7 +27,7 @@ gh pr list                 # что на ревью
 |---|---|
 | Backend | FastAPI (Python 3.13), SQLAlchemy **sync**, Alembic |
 | Frontend (web) | Next.js 16, ReactFlow 12 (legacy graph UI пока живёт) |
-| Frontend (TMA) | Отдельный репо `vyud-tma` — Vite + React + `@twa-dev/sdk` |
+| Frontend (TMA) | Отдельный репо `vyud-tma` — Vite + React 19 + TypeScript + `@twa-dev/sdk` |
 | Database | PostgreSQL через Supabase (eu-west-1), pgvector для Phase 4 |
 | AI | LiteLLM → OpenRouter (Llama 3.3) + Groq + Gemini fallback |
 | Auth | Telegram `initData` HMAC-SHA256 (`app/auth/telegram.py`) |
@@ -51,9 +55,44 @@ vyud-lms/
 │   └── components/graph/ (legacy 29K) · panels/ (12 модалок)
 ├── render.yaml            # Render config (phasing out)
 └── CLAUDE.md
+
+vyud-tma/src/              # Отдельный репо
+├── api/lms.ts             # API client (VITE_LMS_URL)
+├── components/
+│   ├── BottomNav.tsx       # Навигация
+│   ├── Layout.tsx          # Shell с header
+│   ├── ProtectedRoute.tsx  # Auth guard
+│   ├── QuestionCard.tsx    # Quiz UI
+│   └── FileUploader.tsx    # PDF upload
+├── contexts/AuthContext.tsx
+├── lib/telegram.ts · supabase.ts
+└── pages/
+    ├── SOPListPage.tsx     # Список СОП сотрудника
+    ├── SOPPlayerPage.tsx   # Карточки + тест
+    ├── ManagerDashboard.tsx
+    ├── UploadPage.tsx
+    └── AuthPage.tsx · ProfilePage.tsx · HelpPage.tsx
 ```
 
 **Важно:** TMA в **отдельном репо** `vyud-tma`. Таблицы `knowledge_nodes`/`knowledge_edges`/`node_sr_progress` **сохранены намеренно** — legacy data SM-2, не удалять.
+
+## Схема базы данных
+
+### Активные таблицы
+```
+organizations        — команды менеджеров
+org_members          — участники команды (user_key = telegram_id)
+sops                 — СОП (привязан к org_id)
+sop_steps            — шаги СОП (1, 2, 3...)
+sop_completions      — прохождение СОП конкретным сотрудником
+user_streaks         — серии дней активности
+```
+
+### Legacy таблицы (не удалять, не использовать в новом коде)
+```
+courses, lessons, knowledge_nodes, knowledge_edges,
+node_explanations, node_sr_progress, document_chunks
+```
 
 ## Что уже работает (не ломать)
 
@@ -112,6 +151,19 @@ cd frontend && npm run dev
 
 # Deploy (GitHub Actions в работе)
 ssh vyud@38.180.229.254 'cd /srv/vyud-lms && git pull && systemctl restart vyud-lms'
+```
+
+## Переменные окружения (.env)
+
+```
+DATABASE_URL=postgresql://...
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_KEY=...
+GROQ_API_KEY=...
+GEMINI_API_KEY=...
+OPENROUTER_API_KEY=...
+TELEGRAM_BOT_TOKEN=...
 ```
 
 ## Troubleshooting
