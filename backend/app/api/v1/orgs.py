@@ -272,6 +272,9 @@ async def upload_pdf(
     if not org:
         raise HTTPException(status_code=404, detail="Org not found")
 
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="PDF too large. Maximum size is 10 MB.")
+
     file_bytes = await file.read()
 
     try:
@@ -281,6 +284,9 @@ async def upload_pdf(
 
     if not pdf_text.strip():
         raise HTTPException(status_code=400, detail="PDF is empty or contains no extractable text")
+
+    # Limit text to prevent CPU overload on single-core VPS
+    pdf_text = pdf_text[:10_000]
 
     if not topic:
         topic = pdf_text[:100].strip()
