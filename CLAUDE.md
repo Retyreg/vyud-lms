@@ -1,4 +1,4 @@
-# CLAUDE.md — VYUD LMS / SOP Trainer
+# CLAUDE.md — VYUD LMS / VYUD Frontline
 
 > Контекст для Claude Code. Читать в начале каждой сессии.
 > Maintainer: @Retyreg · Обновлено: апрель 2026
@@ -11,10 +11,10 @@
 
 | Продукт | Интерфейс | Endpoints | Статус |
 |---|---|---|---|
-| SOP Trainer | `vyud-tma` (отдельный репо) | `/api/sops/*`, `/api/orgs/*/sops` | Лидирующий, 3 мес фокус |
+| VYUD Frontline | `vyud-tma` (отдельный репо) | `/api/sops/*`, `/api/orgs/*/sops` | Лидирующий, 3 мес фокус |
 | VYUD LMS | `vyud-lms/frontend`, lms.vyud.online | `/api/courses/*`, `/api/nodes/*`, `/api/explain/*` | Второй продукт, поддерживается |
 
-**SOP Trainer** — B2B инструмент: менеджер загружает PDF с регламентом (SOP), AI извлекает шаги и генерирует квиз, сотрудник проходит в Telegram, менеджер видит completion в дашборде. ЦА: HoReCa, Retail, FMCG. **Северная звезда:** за 5 минут от PDF к первому сотруднику, прошедшему квиз. Все новые фичи идут сюда первыми.
+**VYUD Frontline** — B2B инструмент: менеджер загружает PDF с регламентом (SOP), AI извлекает шаги и генерирует квиз, сотрудник проходит в Telegram, менеджер видит completion в дашборде. ЦА: HoReCa, Retail, FMCG. **Северная звезда:** за 5 минут от PDF к первому сотруднику, прошедшему квиз. Все новые фичи идут сюда первыми.
 
 **VYUD LMS** — self-learning через knowledge graph с AI-объяснениями. Web UI активно используется для демо и self-learning. Граф живёт и развивается, но медленнее — новые фичи добавляем только после первого платящего SOP-клиента.
 

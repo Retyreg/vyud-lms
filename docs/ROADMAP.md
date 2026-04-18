@@ -1,6 +1,6 @@
 # VYUD Platform Roadmap
 
-> Два продукта на одном backend. SOP Trainer — лидирующий продукт (фокус 3 месяца).
+> Два продукта на одном backend. VYUD Frontline — лидирующий продукт (фокус 3 месяца).
 > VYUD LMS (Web) поддерживается параллельно, развивается медленнее.
 > Обновлено: апрель 2026
 
@@ -15,7 +15,7 @@ vyud-lms (this repo)
 └── docs/
 
 vyud-tma (separate repo)
-└── Telegram Mini App — SOP Trainer
+└── Telegram Mini App — VYUD Frontline
 ```
 
 ---
@@ -43,7 +43,7 @@ vyud-tma (separate repo)
 
 ## Фаза 2 — Текущий спринт (Day 2 + инфра)
 
-**Цель:** SOP Trainer полностью готов к пилоту.
+**Цель:** VYUD Frontline полностью готов к пилоту.
 
 | Задача | Описание | Статус |
 |---|---|---|
@@ -61,7 +61,7 @@ vyud-tma (separate repo)
 
 **Цель:** 3 платящих клиента по 5,000₽/мес = 15,000₽ MRR.
 
-**Только SOP Trainer. Новые Web-фичи не добавляем до первого платящего клиента.**
+**Только VYUD Frontline. Новые Web-фичи не добавляем до первого платящего клиента.**
 
 ### Маркетинг и онбординг
 - [ ] Лендинг с открытой ценой (5,000₽/мес) — убирает round-trip "сколько стоит"
@@ -83,7 +83,7 @@ vyud-tma (separate repo)
 
 **Цель:** 10–15 клиентов, 50–75K₽ MRR.
 
-**SOP Trainer**
+**VYUD Frontline**
 - [ ] AI-перевод SOP на другие языки (русский → узбекский, и т.д.)
 - [ ] NEO Assistant чатбот: сотрудник спрашивает по SOP → AI отвечает со ссылкой на step (pgvector + RAG)
 - [ ] Photo automoderation: фото → AI проверяет соответствие SOP (для FMCG/Retail)
@@ -100,9 +100,9 @@ vyud-tma (separate repo)
 
 | Продукт | Фича | Обоснование |
 |---|---|---|
-| SOP Trainer | REST API + Webhooks | Интеграции с 1С, Bitrix24, amoCRM → enterprise |
-| SOP Trainer | Frontline Performance Score | Predictive алерты за 48ч до провала |
-| SOP Trainer | Modules/Lessons иерархия | Только если клиенты просят разбить длинный SOP |
+| VYUD Frontline | REST API + Webhooks | Интеграции с 1С, Bitrix24, amoCRM → enterprise |
+| VYUD Frontline | Frontline Performance Score | Predictive алерты за 48ч до провала |
+| VYUD Frontline | Modules/Lessons иерархия | Только если клиенты просят разбить длинный SOP |
 | VYUD LMS | Instructor-created courses | Content editor для авторов курсов |
 | VYUD LMS | Public course catalog | Self-enrollment с оплатой |
 | Оба | Казахский/узбекский UI | Только при выходе на рынок КЗ/УЗ |
