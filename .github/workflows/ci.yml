@@ -77,7 +77,10 @@ jobs:
             cd /var/www/vyud-lms
             git pull origin main
             cd backend
-            .venv/bin/pip install -q -r requirements.txt
+            if [ ! -f .venv/bin/pip ]; then
+              python3 -m venv .venv
+            fi
+            NEEDRESTART_MODE=a .venv/bin/pip install -q -r requirements.txt
             .venv/bin/alembic upgrade head
             systemctl restart vyud-backend
             echo "Deploy complete: $(date)"
