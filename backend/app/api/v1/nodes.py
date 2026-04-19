@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.ai.client import _stream_explanation, call_ai
 from app.core.deps import get_db
 from app.models.course import Course
-from app.models.knowledge import KnowledgeEdge, KnowledgeNode, NodeExplanation, NodeSRProgress
+from app.models.knowledge import KnowledgeNode, NodeExplanation, NodeSRProgress
 from app.schemas.sr import AskRequest, CompleteRequest, ReviewRequest
 from app.services.sm2 import calculate_next_interval, get_mastery_level, is_due, next_review_date
 from app.services.streak import update_streak

@@ -8,7 +8,7 @@ Usage:
 """
 import os
 import logging
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException
 from .telegram import verify_telegram_init_data
 
 logger = logging.getLogger(__name__)

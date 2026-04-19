@@ -1,4 +1,6 @@
+import json as _json
 import logging
+import re
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -15,9 +17,6 @@ from app.services.streak import update_streak
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["sops"])
-
-import re
-import json as _json
 
 
 def _extract_json_list(raw: str) -> list:
