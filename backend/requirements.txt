@@ -16,3 +16,6 @@ openai
 pytest
 pytest-asyncio
 anyio[trio]
+
+# Linting
+ruff
