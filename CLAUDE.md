@@ -108,6 +108,60 @@ SOP CRUD + PDF upload + AI quiz generation · Manager dashboard · Organizations
 
 **VYUD LMS:** knowledge graph, AI-объяснения, SM-2, ReactFlow visualization.
 
+**Demo Mode (апрель 2026):** публичный демо-доступ для B2B клиентов (инструмент продаж).
+
+---
+
+## Demo Mode
+
+### Архитектура
+Параллельная auth, не затрагивает основной Telegram flow.
+
+| Слой | Реализация |
+|---|---|
+| Модели | `app/models/demo.py` → `demo_users`, `demo_feedback` |
+| Миграция | `alembic/versions/g1h2i3j4k5l6_add_demo_tables.py` |
+| Seed | `app/demo/seed.py` — читает `app/demo/sops/index.json`, создаёт Course + KnowledgeNodes |
+| Auth | `app/auth/demo.py` → `get_demo_user(X-Demo-Token)` |
+| API | `app/api/v1/demo.py` + `app/api/v1/admin.py` |
+| Frontend | `app/demo/page.tsx`, `app/demo/magic/[token]/page.tsx`, `app/admin/demo/page.tsx` |
+| Components | `DemoBanner`, `DemoFeedbackModal` в `components/panels/` |
+| Session lib | `lib/demo.ts` → localStorage key `demo_session` |
+
+### Маршруты
+```
+POST  /api/v1/demo/register         → создать demo_user, вернуть magic link
+GET   /api/v1/demo/auth/{token}     → валидация токена, обновить session_expires_at
+POST  /api/v1/demo/feedback         → сохранить отзыв (требует X-Demo-Token)
+GET   /api/v1/demo/ai-check         → остаток AI вызовов за сегодня
+POST  /api/v1/demo/ai-increment     → счётчик AI вызовов +1 (лимит 10/день)
+GET   /api/v1/admin/demo/users      → список demo users (X-Admin-Email)
+GET   /api/v1/admin/demo/feedback   → список отзывов (X-Admin-Email)
+
+/demo                               → регистрационный лендинг
+/demo/magic/{token}                 → magic-link callback → /?demo=1
+/admin/demo                         → admin read-only dashboard
+```
+
+### Env vars (добавить в .env)
+```
+FRONTEND_URL=https://lms.vyud.online   # для формирования magic link
+ADMIN_EMAIL=vatyutovd@gmail.com         # защита /admin/demo
+SMTP_HOST=                              # опционально; без него link на экране
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+```
+
+### Ограничения demo users
+- ❌ Нельзя: создавать графы, приглашать команду, экспортировать
+- ✅ Можно: смотреть seed-граф, AI объяснения (10/день), SM-2 повторения, прогресс
+- ⏱ Сессия: 24ч с каждого magic-link открытия, архив через 14 дней
+
+### Demo user_key в SM-2
+`NodeSRProgress.user_key = "demo:{demo_user.id}"` — изолировано от Telegram users.
+
 ---
 
 ## Code Conventions
