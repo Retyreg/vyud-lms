@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import courses, feedback, health, nodes, orgs, quiz, sops, streaks, templates
+from app.api.v1 import courses, demo, admin, feedback, health, nodes, orgs, quiz, sops, streaks, templates
 
 api_router = APIRouter()
 
@@ -13,3 +13,5 @@ api_router.include_router(sops.router)
 api_router.include_router(quiz.router)
 api_router.include_router(feedback.router)
 api_router.include_router(templates.router)
+api_router.include_router(demo.router)
+api_router.include_router(admin.router)
