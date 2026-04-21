@@ -6,3 +6,4 @@ from app.models.org import OrgMember, Organization  # noqa: F401
 from app.models.sop import SOP, SOPCompletion, SOPStep  # noqa: F401
 from app.models.streak import UserStreak  # noqa: F401
 from app.models.template import SOPTemplate  # noqa: F401
+from app.models.demo import DemoUser, DemoFeedback  # noqa: F401
