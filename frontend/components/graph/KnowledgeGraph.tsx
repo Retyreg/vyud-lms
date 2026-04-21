@@ -46,6 +46,9 @@ import type {
 import { BrandSettingsModal } from '@/components/panels/BrandSettingsModal';
 import { FeedbackWidget } from '@/components/panels/FeedbackWidget';
 import { WelcomeTourModal } from '@/components/panels/WelcomeTourModal';
+import { DemoBanner } from '@/components/panels/DemoBanner';
+import { DemoFeedbackModal } from '@/components/panels/DemoFeedbackModal';
+import { getDemoSession } from '@/lib/demo';
 import { ControlPanel } from '@/components/panels/ControlPanel';
 import { DashboardModal } from '@/components/panels/DashboardModal';
 import { ExplanationPanel } from '@/components/panels/ExplanationPanel';
@@ -209,6 +212,10 @@ export function KnowledgeGraph() {
 
   // Streak modal
   const [showStreak, setShowStreak] = useState(false);
+
+  // Demo mode
+  const [showDemoFeedback, setShowDemoFeedback] = useState(false);
+  const demoSession = typeof window !== 'undefined' ? getDemoSession() : null;
 
   // Brand / white-label
   const [orgBrand, setOrgBrand] = useState<OrgBrand | null>(null);
@@ -560,6 +567,15 @@ export function KnowledgeGraph() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#f8f9fa' }}>
+      {demoSession && (
+        <DemoBanner onFeedbackClick={() => setShowDemoFeedback(true)} />
+      )}
+      {showDemoFeedback && demoSession && (
+        <DemoFeedbackModal
+          session={demoSession}
+          onClose={() => setShowDemoFeedback(false)}
+        />
+      )}
       <ControlPanel
         topic={courseTopic}
         onTopicChange={setCourseTopic}
