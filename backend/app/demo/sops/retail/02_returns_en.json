@@ -1,0 +1,74 @@
+{
+  "id": "retail-returns",
+  "segment": "retail",
+  "title": "Handling Product Returns",
+  "description": "How to process returns correctly while staying legal and conflict-free with customers.",
+  "estimated_duration_min": 15,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Meeting a customer with a return",
+      "content": "Return customers often arrive already frustrated. Don't argue or make excuses. Greet them, smile, say: 'Let's take a look at what happened'. Guide them to a separate area (not the checkout, to avoid blocking the queue). The first 30 seconds set the tone for the whole interaction.",
+      "key_takeaway": "Separate return customers from the queue. A conflict at the register is seen by 10 others."
+    },
+    {
+      "order": 2,
+      "title": "Checking legal grounds",
+      "content": "Per most consumer protection laws: non-food goods in proper condition — return window varies (typically 14-30 days depending on jurisdiction and store policy). The item didn't fit in: shape, size, style, color, dimensions, configuration. Food items — no return unless defective. Receipt is preferred but alternative proof (bank statement) often accepted.",
+      "key_takeaway": "Know your return window and store policy by heart. 'Didn't fit' is usually valid."
+    },
+    {
+      "order": 3,
+      "title": "Inspecting merchandise condition",
+      "content": "For a return, the item must be: unused, with preserved merchantable condition (seals, tags, packaging), with consumer properties intact. Usage signs, scratches, odor — refusal with explanation. Inspect in front of the customer, describe aloud what you see.",
+      "key_takeaway": "Inspecting aloud with the customer = transparency. Silent refusal = complaint."
+    },
+    {
+      "order": 4,
+      "title": "Items NOT eligible for return",
+      "content": "Typical non-returnable categories: prescription drugs, hygiene items, underwear and hosiery, perfume (sealed only), jewelry, vehicles, firearms, plants, animals, books and print. Memorize the list — customers often 'try their luck'.",
+      "key_takeaway": "Jewelry, underwear, perfume, medications — no returns. It's law, not store whim."
+    },
+    {
+      "order": 5,
+      "title": "Completing the return form",
+      "content": "Customer fills out a return form: full name, ID (number), phone, item name, purchase date, return reason, refund method (cash / card / mobile). No ID = no cash refund. Form signed by customer + cashier. Copy to customer.",
+      "key_takeaway": "No ID, no cash refund. It's tax law, not store preference."
+    },
+    {
+      "order": 6,
+      "title": "Refund processing",
+      "content": "Cash — immediate, if the register holds enough. Card — refund to the same card (1-10 business days by law, usually 1-3). Mobile — same day. Never give cash if payment was by card — that's a tax violation with store fines. Print the return receipt.",
+      "key_takeaway": "Card → card. Cash → cash. Cross-method refunds = up to $500 fine."
+    },
+    {
+      "order": 7,
+      "title": "Logging and exchange/upsell",
+      "content": "Log into the system: item, reason, outcome. After the return, offer: exchange for another item, discount on next purchase, promo subscription. A customer whose return was handled smoothly returns more often than one who never had a return.",
+      "key_takeaway": "Smooth return = +1 loyal customer. Conflict return = -5 through reviews."
+    }
+  ],
+  "quiz": [
+    {"question": "Return window for non-food items in proper condition?", "options": ["7 days", "Typically 14-30 days (depends on jurisdiction)", "90 days", "Any time"], "correct_index": 1, "explanation": "Varies by country and store policy — know yours by heart."},
+    {"question": "Which item is NOT returnable?", "options": ["Shoes", "Dishes", "Jewelry", "Clothing"], "correct_index": 2, "explanation": "Jewelry is on the typical exclusion list, along with underwear, perfume, medications."},
+    {"question": "Can a return be processed without a receipt?", "options": ["No, impossible", "Yes, but harder — needs alternative proof", "Only for VIPs", "Only with ID"], "correct_index": 1, "explanation": "Most laws allow return without receipt if other proof exists (bank statement, witness)."},
+    {"question": "Payment was by card — how to refund?", "options": ["Cash — faster", "Only to the same card", "Any method", "Depends on amount"], "correct_index": 1, "explanation": "Same card only — tax requirement. Cross-method refund triggers a store fine."},
+    {"question": "What to do with a frustrated customer returning an item?", "options": ["Refuse immediately", "Lead them to a separate area, don't argue", "Call security", "Ignore"], "correct_index": 1, "explanation": "Conflict at the register is seen by other customers. Separation protects reputation."}
+  ],
+  "manager_checklist": [
+    "Staff leads customer away from the register to a separate area",
+    "Knows the return window by heart",
+    "Knows the non-returnable items list",
+    "Inspects merchandise aloud in front of the customer",
+    "Doesn't process refunds without ID",
+    "Refunds via the same method as payment",
+    "Offers exchange or upsell after return"
+  ],
+  "kpi": [
+    {"metric": "Return rate as % of sales", "target": "≤ 3%", "how_to_measure": "POS: returns / sales"},
+    {"metric": "Return processing time", "target": "≤ 10 minutes", "how_to_measure": "Timestamp from contact to return receipt"},
+    {"metric": "Complaints about return process", "target": "≤ 1 per 100 returns", "how_to_measure": "Complaint log + Google/Yelp reviews"},
+    {"metric": "Fines for improper returns", "target": "0 fines per quarter", "how_to_measure": "Audit reports + customer claims"}
+  ]
+}

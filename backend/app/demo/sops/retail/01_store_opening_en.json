@@ -1,0 +1,74 @@
+{
+  "id": "retail-store-opening",
+  "segment": "retail",
+  "title": "Store Opening",
+  "description": "Morning process to prepare the store for business: from shift handover to the first customer.",
+  "estimated_duration_min": 25,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Shift handover with security",
+      "content": "Arrive 30 minutes before opening. With security check: overnight incident log (break-ins, alarm triggers), safe seal integrity, lock condition. Sign the handover log. If anything is off — don't enter alone, call the manager first.",
+      "key_takeaway": "Arrival + security signature = your shift starts. Before the signature, it hasn't."
+    },
+    {
+      "order": 2,
+      "title": "Sales floor walkthrough",
+      "content": "Quick check: leaks (ceiling, fridges), broken displays, pest signs, floor condition. Lighting on? HVAC running? Registers booting? If you find a problem — photo + manager chat immediately, fix in parallel.",
+      "key_takeaway": "Walkthrough = 5 minutes. Breakages before opening aren't incidents. Breakages with customers around are."
+    },
+    {
+      "order": 3,
+      "title": "Display and price tag check",
+      "content": "Priority zones: checkout, hot spots, endcaps. Verify: every item has a price tag, shelf price = register price (spot-scan 10 items), no empty shelves on promo. Missing price tag = regulatory fine on inspection.",
+      "key_takeaway": "10 random price scans. Mismatch = claim before opening."
+    },
+    {
+      "order": 4,
+      "title": "Shelf replenishment",
+      "content": "Deploy team for restocking: fast-movers first (bread, milk, water), then promos, then the rest. Rotation rule — FIFO (first in, first out): new stock behind, old stock in front. Check expiry dates in the checkout zone — first thing customers see.",
+      "key_takeaway": "FIFO. Old in front, new in back. Reverse order = write-offs = losses."
+    },
+    {
+      "order": 5,
+      "title": "Register setup",
+      "content": "Register: insert cash drawer, open shift in POS (previous day's Z-report must exist), check receipt paper, load change float (standard ~$30). Card terminal — test $1 payment and refund. Internet working?",
+      "key_takeaway": "$1 terminal test is mandatory. Finding out from a customer = failure."
+    },
+    {
+      "order": 6,
+      "title": "Team briefing",
+      "content": "5 minutes before opening: quick huddle. Lay out the day plan (promos, new arrivals, delivery schedule), task each person (register, floor, replenishment). Reminders on promos: discounts, upsells. Ask for questions. Inspire, don't attack.",
+      "key_takeaway": "Huddle = 5 minutes. Everyone knows their task before the doors open."
+    },
+    {
+      "order": 7,
+      "title": "Opening the doors and the first hour",
+      "content": "Unlock doors exactly on time. The first hour is the most critical: peak load, cashier mistakes, first complaints. Don't retreat to the office — stay on the floor. Help with bagging, manage queues, suggest products. First impression = a week of loyalty.",
+      "key_takeaway": "First hour — on the floor, not in the office. Where the problems are, not where the reports are."
+    }
+  ],
+  "quiz": [
+    {"question": "How early does the manager arrive?", "options": ["10 minutes", "30 minutes", "An hour", "Right at opening"], "correct_index": 1, "explanation": "30 minutes is standard for handover, walkthrough, briefing, and register startup."},
+    {"question": "What is FIFO in shelf stocking?", "options": ["First in, first out (old in front)", "Cheapest in front", "Most expensive in front", "Random order"], "correct_index": 0, "explanation": "FIFO prevents expiry write-offs — the main job of shelf stocking."},
+    {"question": "Mandatory card terminal test?", "options": ["Not needed if it worked yesterday", "$1 payment and refund", "Just check the light", "Call the bank"], "correct_index": 1, "explanation": "Only a real transaction confirms the full chain works."},
+    {"question": "What to do if an item has no price tag?", "options": ["Leave as is", "Remove from shelf or print a tag urgently", "Price from memory", "Write it off"], "correct_index": 1, "explanation": "Selling without a price tag is prohibited — regulatory fine risk."},
+    {"question": "Where should the manager be during the first hour?", "options": ["In the office, doing reports", "On the sales floor, helping the team", "At home — they arrived early", "In a meeting"], "correct_index": 1, "explanation": "Peak load requires the manager to be where the customers are."}
+  ],
+  "manager_checklist": [
+    "Signed the shift handover log with security",
+    "Completed a 5-minute walkthrough, logged problems",
+    "Spot-scanned 10 random prices vs register",
+    "Team replenished shelves per FIFO",
+    "Ran $1 terminal test transaction",
+    "Held team briefing 5 minutes before opening",
+    "Spent the first hour on the sales floor"
+  ],
+  "kpi": [
+    {"metric": "On-time opening", "target": "100% of days open exactly on time", "how_to_measure": "CCTV logs or register timestamp of first transaction"},
+    {"metric": "Price errors at register", "target": "≤ 0.5% of receipts with price adjustments", "how_to_measure": "POS report: price corrections"},
+    {"metric": "Queues > 3 people", "target": "≤ 2 times in the first hour", "how_to_measure": "CCTV queue counter or cashier timer"},
+    {"metric": "Expiry write-offs", "target": "≤ 0.3% of turnover", "how_to_measure": "Write-off records / revenue for the period"}
+  ]
+}

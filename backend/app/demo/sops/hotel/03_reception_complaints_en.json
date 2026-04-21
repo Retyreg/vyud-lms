@@ -1,0 +1,75 @@
+{
+  "id": "hotel-reception-complaints",
+  "segment": "hotel",
+  "title": "Reception Complaint Handling",
+  "description": "How to defuse guest dissatisfaction at the front desk before it becomes a bad Booking review.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Reading the complaint type",
+      "content": "Three types: material (broken shower, noise, dirt), service (rude staff, missed request), expectation (marketing promised more). The diagnosis drives the method. Material — fix fast. Service — apologize and compensate. Expectation — explain and offer alternatives.",
+      "key_takeaway": "Three complaint types = three different methods. Don't confuse them."
+    },
+    {
+      "order": 2,
+      "title": "HEAT: the defusing method",
+      "content": "H — Hear (listen silently, don't interrupt even if the guest is wrong). E — Empathize ('I understand, I'd feel the same'). A — Apologize (sincerely, once, no caveats). T — Take action (concrete action, not promises). HEAT is Marriott and IHG standard.",
+      "key_takeaway": "Hear → Empathize → Apologize → Take action. No 'but' between H and T."
+    },
+    {
+      "order": 3,
+      "title": "Responding to noise complaints",
+      "content": "The most common complaint. Solutions by escalation: offer earplugs → move to another room (away from elevator/kitchen/street) → free upgrade to a different room → 20-30% night discount. Never suggest 'bear with it' — that's provoking a bad review.",
+      "key_takeaway": "Four resolution levels. 'Bear with it' is not a solution — it's an invitation to a fight."
+    },
+    {
+      "order": 4,
+      "title": "Compensation tiers",
+      "content": "Tier 1 (agent): free breakfast, compliment (champagne, fruit), late check-out. Tier 2 (shift manager): room change, upgrade, up to 30% discount. Tier 3 (GM): refund, full compensation, Booking compensation. Don't exceed your tier.",
+      "key_takeaway": "Three compensation tiers. Yours = breakfast + compliment + late check-out."
+    },
+    {
+      "order": 5,
+      "title": "What NOT to say",
+      "content": "Banned phrases: 'Not my fault', 'This is the first time', 'Other guests haven't complained', 'Not against our standard', 'Read the rules'. Each one leads straight to a 1/10 Booking review. Replace with: 'I understand, let's fix this'.",
+      "key_takeaway": "Five killer phrases. Memorize them and never say them."
+    },
+    {
+      "order": 6,
+      "title": "Incident documentation",
+      "content": "After resolution: log in the PMS complaint register — date, room, issue, resolution, compensation, agent signature. For serious cases — photos, camera footage, manager report via Telegram/email. Documentation = protection during review and team training.",
+      "key_takeaway": "No record = no complaint. Which means the team won't learn."
+    },
+    {
+      "order": 7,
+      "title": "Follow-up and review prevention",
+      "content": "Two hours after resolution — verify all is well (call or drop-by). At check-out — personally apologize and ask about the experience. If the guest is happy with the resolution, ask: 'If today went well, a review would mean a lot'. This turns complaints into 5-star reviews 40% of the time.",
+      "key_takeaway": "A well-handled complaint creates a better review than a neutral stay."
+    }
+  ],
+  "quiz": [
+    {"question": "What does HEAT stand for?", "options": ["Hot, Empty, Angry, Tense", "Hear, Empathize, Apologize, Take action", "Help, Explain, Ask, Thank", "Just 'warm'"], "correct_index": 1, "explanation": "Standard Marriott and IHG method for defusing complaints."},
+    {"question": "What compensation is within an agent's authority?", "options": ["Refund", "Breakfast, compliment, late check-out", "Room change with upgrade", "All tiers"], "correct_index": 1, "explanation": "Tier 1 — agent. Room change — shift manager. Refund — GM."},
+    {"question": "Which phrase is banned?", "options": ["'I understand, let's fix this'", "'Other guests haven't complained'", "'I'll fix this right now'", "'My apologies'"], "correct_index": 1, "explanation": "'Other guests haven't complained' dismisses the guest and guarantees a bad review."},
+    {"question": "Where do you log incidents?", "options": ["Nowhere, remember it", "PMS complaint register + photos for serious cases", "Only Telegram to manager", "A note on the desk"], "correct_index": 1, "explanation": "PMS + photos = hotel protection, team training, guest history."},
+    {"question": "What are the 4 resolution levels for noise complaints?", "options": ["Bear it → complain → sue → review", "Earplugs → different room → upgrade → discount", "Upgrade only", "Discount only"], "correct_index": 1, "explanation": "Four steps from cheap to expensive. 'Bear with it' is not on the list."}
+  ],
+  "manager_checklist": [
+    "Agent distinguishes complaint types (material/service/expectation)",
+    "Applies HEAT, doesn't make excuses",
+    "Knows 4 resolution levels for noise",
+    "Doesn't exceed compensation authority",
+    "Avoids banned phrases",
+    "Logs incident in PMS register",
+    "Follows up after 2 hours",
+    "Asks for review after successful resolution"
+  ],
+  "kpi": [
+    {"metric": "Complaints resolved at agent level", "target": "≥ 60%", "how_to_measure": "PMS log: resolution level / total complaints"},
+    {"metric": "Negative reviews after complaints", "target": "≤ 10% of complaints turn into a bad review", "how_to_measure": "Match guests from log with Booking reviews"},
+    {"metric": "Hotel Booking rating", "target": "≥ 8.8 after SOP rollout", "how_to_measure": "30-day rolling average"},
+    {"metric": "Complaints with follow-up call", "target": "100%", "how_to_measure": "PMS call log"}
+  ]
+}

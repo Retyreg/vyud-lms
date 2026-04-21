@@ -1,0 +1,64 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-21",
+  "description": "VYUD Demo SOP library — 15 SOPs × 2 languages = 30 files across 5 industry segments",
+  "segments": {
+    "cafe_restaurant": {
+      "display_name_ru": "Кофейни и рестораны",
+      "display_name_en": "Cafes and Restaurants",
+      "sops": [
+        {"id": "cafe-barista-onboarding", "title_ru": "Онбординг бариста: первая смена", "title_en": "Barista Onboarding: First Shift"},
+        {"id": "cafe-guest-complaints", "title_ru": "Встреча гостя и работа с жалобами", "title_en": "Guest Greeting and Complaint Handling"},
+        {"id": "cafe-shift-closing", "title_ru": "Закрытие смены и передача", "title_en": "Shift Closing and Handover"}
+      ]
+    },
+    "hotel": {
+      "display_name_ru": "Отели",
+      "display_name_en": "Hotels",
+      "sops": [
+        {"id": "hotel-guest-checkin", "title_ru": "Check-in гостя на ресепшн", "title_en": "Front Desk Guest Check-in"},
+        {"id": "hotel-housekeeping", "title_ru": "Уборка номера (Housekeeping)", "title_en": "Room Housekeeping"},
+        {"id": "hotel-reception-complaints", "title_ru": "Работа с жалобами на ресепшн", "title_en": "Reception Complaint Handling"}
+      ]
+    },
+    "retail": {
+      "display_name_ru": "Розничные сети",
+      "display_name_en": "Retail Chains",
+      "sops": [
+        {"id": "retail-store-opening", "title_ru": "Открытие магазина", "title_en": "Store Opening"},
+        {"id": "retail-returns", "title_ru": "Работа с возвратом товара", "title_en": "Handling Product Returns"},
+        {"id": "retail-loss-prevention", "title_ru": "Предотвращение краж", "title_en": "Loss Prevention"}
+      ]
+    },
+    "fmcg": {
+      "display_name_ru": "FMCG",
+      "display_name_en": "FMCG",
+      "sops": [
+        {"id": "fmcg-store-visit", "title_ru": "Визит в торговую точку: 7 шагов", "title_en": "Store Visit: 7 Steps"},
+        {"id": "fmcg-planogram", "title_ru": "Выкладка по планограмме", "title_en": "Planogram Execution"},
+        {"id": "fmcg-objection-handling", "title_ru": "Работа с возражениями в B2B-продажах", "title_en": "Objection Handling in B2B Sales"}
+      ]
+    },
+    "warehouse": {
+      "display_name_ru": "Склады",
+      "display_name_en": "Warehouses",
+      "sops": [
+        {"id": "warehouse-receiving", "title_ru": "Приёмка товара на склад", "title_en": "Inbound Receiving"},
+        {"id": "warehouse-picking", "title_ru": "Комплектация заказа (Picking)", "title_en": "Order Picking"},
+        {"id": "warehouse-forklift-safety", "title_ru": "Техника безопасности на погрузчике", "title_en": "Forklift Safety"}
+      ]
+    }
+  },
+  "schema": {
+    "id": "string — stable identifier, snake-case-with-dashes, matches across languages",
+    "segment": "enum — cafe_restaurant | hotel | retail | fmcg | warehouse",
+    "title": "string",
+    "description": "string — 1-2 sentences, shown in SOP list",
+    "estimated_duration_min": "integer — training time in minutes",
+    "language": "enum — ru | en",
+    "steps": "array — each step: {order, title, content, key_takeaway}",
+    "quiz": "array — 5 items: {question, options[4], correct_index, explanation}",
+    "manager_checklist": "array of strings — what the manager verifies on the floor",
+    "kpi": "array — each KPI: {metric, target, how_to_measure}"
+  }
+}

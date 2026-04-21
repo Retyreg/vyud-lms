@@ -1,0 +1,74 @@
+{
+  "id": "cafe-barista-onboarding",
+  "segment": "cafe_restaurant",
+  "title": "Barista Onboarding: First Shift",
+  "description": "SOP for a new barista on day one. Covers shift opening, basic drink preparation, and guest interaction.",
+  "estimated_duration_min": 25,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Workstation preparation",
+      "content": "Arrive 15 minutes before shift start. Put on a clean uniform and apron. Wash hands (40 seconds with soap). Check the bar: surface cleanliness, milk, beans, cups, lids, stirrers stock. Turn on the espresso machine — 20-minute warm-up. Start the display fridge and verify temperature (+2…+6°C / 36-43°F).",
+      "key_takeaway": "Your shift starts 15 minutes before the first guest, not at opening time."
+    },
+    {
+      "order": 2,
+      "title": "Grind calibration and espresso dial-in",
+      "content": "Pull a test shot: 18g coffee in, 36g out, in 25-30 seconds. Faster? Grind finer. Slower? Grind coarser. Taste: balanced, no sharp acidity or bitterness. Repeat until you hit the standard. Calibration is the foundation of the whole shift.",
+      "key_takeaway": "18g → 36g → 25-30 sec. This is a formula, not a rough guide."
+    },
+    {
+      "order": 3,
+      "title": "Cappuccino preparation",
+      "content": "150 ml cold milk into the pitcher. Steam to 60-65°C (140-149°F), glossy texture, no large bubbles. Pull espresso into a 180 ml cup. Pour milk from 3-5 cm above, then lower the pitcher for the pattern. Serve immediately — cappuccino lives 90 seconds.",
+      "key_takeaway": "65°C is the ceiling. Above that, milk is scalded and flavor is gone."
+    },
+    {
+      "order": 4,
+      "title": "Greeting and taking the order",
+      "content": "Eye contact + smile within 5 seconds of the guest appearing. Greeting: 'Hi, what can I get for you?'. If the guest hesitates — offer two options, not five. Repeat the order aloud before ringing it up. State the total clearly. Hand over receipt and order number.",
+      "key_takeaway": "Two options, not five. Less choice = faster decision."
+    },
+    {
+      "order": 5,
+      "title": "Cashier and payment handling",
+      "content": "Ring each item separately — do not 'combine in your head'. Clarify payment method: card, cash, mobile. On change — state the amount aloud. If terminal fails — stay calm, politely offer an alternative. Never accept 'pay later' or 'on credit'.",
+      "key_takeaway": "Each item separately. Saving 5 seconds = mistake in the report."
+    },
+    {
+      "order": 6,
+      "title": "Handing the drink to the guest",
+      "content": "Call out the order: 'Cappuccino for Anna'. Place on the pickup counter with the handle facing the guest. Add a napkin and stirrer. Wish them a 'great day'. For takeaway — confirm the lid is sealed tight.",
+      "key_takeaway": "Name + eye contact on handoff. That's +20% in tips."
+    },
+    {
+      "order": 7,
+      "title": "Shift closing and cashout",
+      "content": "30 minutes before closing: stop accepting orders for complex drinks. Backflush the espresso machine (3 cycles). Wipe all surfaces, wash pitchers. Pull the Z-report. Reconcile cash with the report — discrepancy over $1 = log it and notify the manager.",
+      "key_takeaway": "Don't hide discrepancies — log them. Honesty beats a clean report."
+    }
+  ],
+  "quiz": [
+    {"question": "How many minutes before shift start should you arrive?", "options": ["5 minutes", "10 minutes", "15 minutes", "30 minutes"], "correct_index": 2, "explanation": "15 minutes are needed for machine warm-up and bar check."},
+    {"question": "What is the correct espresso formula?", "options": ["18g → 36g in 25-30 sec", "20g → 40g in 20 sec", "15g → 30g in 40 sec", "Whatever works"], "correct_index": 0, "explanation": "18/36/25-30 is the international standard for classic espresso."},
+    {"question": "Maximum milk temperature for cappuccino?", "options": ["50°C", "60-65°C", "75°C", "90°C"], "correct_index": 1, "explanation": "Above 65°C milk protein denatures, flavor turns 'boiled'."},
+    {"question": "What to do with a cash discrepancy over $1?", "options": ["Cover it from your pocket", "Write it off as error", "Log it and notify the manager", "Recount until it matches"], "correct_index": 2, "explanation": "Honest logging matters more than a 'clean' report. It's about trust."},
+    {"question": "How many drink options to offer a hesitating guest?", "options": ["One — the most popular", "Two", "The full menu", "Ask what they like"], "correct_index": 1, "explanation": "Two options speed up the decision. More creates choice paralysis."}
+  ],
+  "manager_checklist": [
+    "Barista arrived in uniform 15+ minutes before shift",
+    "Ran a test shot and calibrated the grind",
+    "Prepared cappuccino at correct milk temperature (spot-check with thermometer)",
+    "Greets guest within 5 seconds",
+    "Uses cashier correctly (no 'combining in head')",
+    "States guest name on handoff",
+    "Closed shift with correct Z-report"
+  ],
+  "kpi": [
+    {"metric": "Cappuccino preparation time", "target": "≤ 90 seconds from payment", "how_to_measure": "Manual timing, 5 samples per shift"},
+    {"metric": "Espresso calibration accuracy", "target": "≥ 90% of shots within 25-30 sec range", "how_to_measure": "Spot-timer check, 10 shots per shift"},
+    {"metric": "Cash discrepancy", "target": "≤ $1.50 per shift", "how_to_measure": "Z-report vs physical cash reconciliation"},
+    {"metric": "Guest greeting speed", "target": "≤ 5 seconds from appearance to greeting", "how_to_measure": "Mystery shopper / camera review"}
+  ]
+}

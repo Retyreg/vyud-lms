@@ -1,0 +1,75 @@
+{
+  "id": "warehouse-picking",
+  "segment": "warehouse",
+  "title": "Order Picking",
+  "description": "Standard for order picking: from handheld task assignment to handoff for packing.",
+  "estimated_duration_min": 25,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Receiving the task on the handheld",
+      "content": "Open the handheld (scanner/RF device), log in via badge barcode. The system assigns an order by priority: express delivery → timed order → standard queue. Screen shows: order number, line count, priority, ready-by time. Check your cart and tote — empty, clean, tagged with your ID.",
+      "key_takeaway": "Badge login = personal accountability. Anonymous picking = unpunished errors."
+    },
+    {
+      "order": 2,
+      "title": "Optimal route",
+      "content": "The system builds a snake-route by zones: don't run chaotically. Follow the handheld's prompts — from nearest bin to farthest. Don't skip — optimization saves 30% of shift time. If a bin is empty — immediately hit 'no stock' on the handheld, don't search by hand. An empty bin is the replenisher's job, not yours.",
+      "key_takeaway": "Handheld route is optimal. Improvising = lost time and errors."
+    },
+    {
+      "order": 3,
+      "title": "Scanning and picking",
+      "content": "At the bin: first scan the bin barcode — confirms you're at the right location. Then scan the item barcode — confirms it's the right SKU. Pick the quantity shown on the handheld. Visually check: expiry date (FIFO — oldest lot first), package integrity, correct labeling. Damaged — set aside for return, don't put it in the order.",
+      "key_takeaway": "Bin scan + item scan = double protection. One scan = vulnerability."
+    },
+    {
+      "order": 4,
+      "title": "Loading rules",
+      "content": "Heavy at the bottom, light on top. Fragile — separate, with padding. Liquids — upright, cap up, in a waterproof bag. Frozen — last, in a thermal tote. Don't overfill: 5 cm (2 in) of free space on top for the packer. Different items — different tote sections.",
+      "key_takeaway": "5 cm empty on top. Overfill = packer can't close it, tote goes back, time lost."
+    },
+    {
+      "order": 5,
+      "title": "Handling non-standard situations",
+      "content": "Item present but quantity short: pick what's available, mark 'partial pick' on the handheld, system notifies the customer. Wrong item in the bin (sort error): don't take, mark 'mismatch', move to next line. Damage during picking: set aside, mark 'damage', take a replacement from another bin.",
+      "key_takeaway": "Don't guess. The handheld has 3 scenarios for non-standard situations — use them."
+    },
+    {
+      "order": 6,
+      "title": "Final order check",
+      "content": "Before handoff: walk the handheld list, confirm all lines are marked picked. Count the packages in the cart — must match the line count. Do a final confirmation: 'complete' button on the handheld. System closes the picker for this order, order moves to packing.",
+      "key_takeaway": "Final count at the end. 30 seconds now = 30 minutes of complaint resolution later."
+    },
+    {
+      "order": 7,
+      "title": "Handing off to packing",
+      "content": "Take the cart to the packing zone. Hand over to the packer via handheld signature (packer's badge scan). From this moment, responsibility is theirs. Return cart to the start zone, next order. An average picker handles 80-120 orders per shift. Don't chase quantity at the cost of accuracy — errors cost more.",
+      "key_takeaway": "Handoff by signature = responsibility transfers. Without scan = still yours."
+    }
+  ],
+  "quiz": [
+    {"question": "Why log into the handheld by badge?", "options": ["Just a formality", "Personal accountability for the order", "For manager reporting", "For payroll"], "correct_index": 1, "explanation": "Without login, errors can't be traced, no accountability."},
+    {"question": "How many scans at each bin?", "options": ["One: item only", "Two: bin + item", "None, visual check is enough", "Three: bin + item + badge"], "correct_index": 1, "explanation": "Double-scan prevents 95% of picking errors."},
+    {"question": "How to load the cart?", "options": ["Any way", "Heavy at bottom, light on top, fragile separate", "All mixed", "Alphabetically"], "correct_index": 1, "explanation": "Wrong loading = damage in transit = return = loss."},
+    {"question": "Empty bin — what to do?", "options": ["Search nearby shelves", "Hit 'no stock' on the handheld", "Take from another order", "Skip silently"], "correct_index": 1, "explanation": "'No stock' auto-assigns a replenisher. Manual search = lost time."},
+    {"question": "How to hand off to the packer?", "options": ["Leave cart and go", "Handheld signature via badge scan", "Tell them verbally", "Post in chat"], "correct_index": 1, "explanation": "Badge scan = documented handoff. Verbal = 'who's at fault' argument."}
+  ],
+  "manager_checklist": [
+    "Picker logs into handheld by badge at shift start",
+    "Follows handheld route, doesn't improvise",
+    "Scans bin + item (double confirmation)",
+    "Follows FIFO — old dates first",
+    "Loads cart correctly (heavy at bottom)",
+    "Uses 'no stock' / 'mismatch' / 'damage' buttons",
+    "Performs final count before handoff",
+    "Hands off to packer via handheld signature"
+  ],
+  "kpi": [
+    {"metric": "Pick accuracy", "target": "≥ 99.5%", "how_to_measure": "Customer claims / total picked lines"},
+    {"metric": "Picking speed", "target": "≥ 120 lines/hour", "how_to_measure": "Handheld: lines divided by active shift time"},
+    {"metric": "Skipped-scan errors", "target": "≤ 0.5% of orders", "how_to_measure": "Handheld report: lines without second scan"},
+    {"metric": "Returns due to pick errors", "target": "≤ 1% of orders", "how_to_measure": "Comparison with customer returns"}
+  ]
+}

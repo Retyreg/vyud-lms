@@ -1,0 +1,74 @@
+{
+  "id": "fmcg-store-visit",
+  "segment": "fmcg",
+  "title": "Store Visit: 7 Steps",
+  "description": "Standard for an FMCG sales rep store visit: from preparation to report. Condensed version of the classic 10-step call.",
+  "estimated_duration_min": 30,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Pre-visit preparation",
+      "content": "The night before or in the morning: check the route plan, review account history in CRM (what they bought, when, any debts), prep samples and POSM (posters, shelf-talkers), verify tablet and mobile app. The visit goal = a concrete number (e.g., 'land 3 SKUs of the new flavor'), not 'visit the account'.",
+      "key_takeaway": "Visit goal is not 'visit' but 'increase order by X'. Without a number, the visit fails."
+    },
+    {
+      "order": 2,
+      "title": "Greeting and contact with decision-maker",
+      "content": "Greet the clerk, check if the decision-maker (buyer, manager) is in. If not — agree on a return time. With the DM: introduce yourself, use their name, brief small talk (max 30 seconds), transition to business. Don't open with 'we have a new product' — first ask how they're doing.",
+      "key_takeaway": "DM's name + 30 sec small talk. Then business. Not the other way around."
+    },
+    {
+      "order": 3,
+      "title": "Shelf and stockroom audit",
+      "content": "Floor walk: photograph your shelf (before touching), count SKUs, price tags, neighboring brands. Stockroom: together with DM, count stock (if no trust — count via the app yourself). Compare with sales history — that's the order baseline. A missing SKU on the shelf = out-of-stock, the #1 lost-sales driver.",
+      "key_takeaway": "Photo before + photo after. Without photos, POSM reimbursement requests are rejected."
+    },
+    {
+      "order": 4,
+      "title": "Merchandising and POSM",
+      "content": "Fix the shelf: by planogram, facing the customer, by rotation (FIFO). Check price tags — yours, or competitors on your space? Place POSM: shelf-talker, wobbler, shelf sticker. Rule: POSM works for 30 days, then replace. Photograph the 'after' shelf — upload to CRM.",
+      "key_takeaway": "30 days of POSM. Replace after that, or it becomes visual noise."
+    },
+    {
+      "order": 5,
+      "title": "Pitch and building the order",
+      "content": "Pitch the order, not the product. Not 'we have a new item', but 'I recommend 2 cases — a similar account nearby sold through in 2 weeks'. Use data: regional sales, margin, turnover. Close with alternative questions: 'Shall we do your usual 4 cases or try 6?'. Never 'anything else?'.",
+      "key_takeaway": "Pitch the order with numbers. 'Try' instead of 'we have a new product'."
+    },
+    {
+      "order": 6,
+      "title": "Handling objections",
+      "content": "Three main objections: 'no space' (solution — remove slow SKU, add new; show turnover), 'too expensive' (solution — calculate margin in dollars, not percentages), 'won't sell' (solution — check placement; often the shelf is the problem, not the product). Each objection deserves a concrete answer, not an argument.",
+      "key_takeaway": "No space → rotation. Too expensive → margin in dollars. Won't sell → check placement."
+    },
+    {
+      "order": 7,
+      "title": "Reporting and next-visit planning",
+      "content": "In the app log: order, before/after shelf photos, outstanding AR, tasks for next visit (bring sample, collect signature, deliver POSM). Agree on the next visit date with DM. Leaving — thank them by name, not 'goodbye', but 'John, I'll be here Thursday at 10, bringing samples. See you!'.",
+      "key_takeaway": "Next visit booked on a specific date. Without it, you lose control of the account."
+    }
+  ],
+  "quiz": [
+    {"question": "What should the visit goal be?", "options": ["'Visit the account'", "Specific number: '+X SKUs' or '+Y revenue'", "'Talk to the clerk'", "'Show the new product'"], "correct_index": 1, "explanation": "A goal without a number can't be measured. No goal = wasted time."},
+    {"question": "What do you photograph at the store?", "options": ["Only the 'after' shelf", "Before and after shelf", "Nothing, notes are enough", "Just the receipt"], "correct_index": 1, "explanation": "Before/after photos prove the work and support POSM reimbursement claims."},
+    {"question": "How to close an order?", "options": ["'Anything else?'", "Alternative question: '4 cases or 6?'", "'Same as usual'", "Wait for the client to say it"], "correct_index": 1, "explanation": "Alternative-choice questions lift average order by 15-20%."},
+    {"question": "'Too expensive' objection — how to handle?", "options": ["Lower the price", "Calculate margin in dollars, not percentages", "Agree", "Leave"], "correct_index": 1, "explanation": "Clients live in dollars, not percentages. 40% margin sounds abstract, $1.50 per bottle is concrete."},
+    {"question": "How to say goodbye to the DM?", "options": ["'Goodbye'", "Name + specific next-visit date + what you'll bring", "'Call if needed'", "Silently"], "correct_index": 1, "explanation": "A specific agreement = account retention. A vague goodbye = forgotten."}
+  ],
+  "manager_checklist": [
+    "Rep arrived with a clear numeric visit goal",
+    "Took before/after shelf photos",
+    "Counted stockroom inventory",
+    "Checked price tags and competitors",
+    "Closed the order with alternative-choice questions",
+    "Handled at least one objection with a technique",
+    "Booked a specific next-visit date"
+  ],
+  "kpi": [
+    {"metric": "Daily visit plan completion", "target": "≥ 95% (12-15 visits)", "how_to_measure": "GPS tracking + CRM report"},
+    {"metric": "Visit-to-order conversion", "target": "≥ 70%", "how_to_measure": "CRM: visits with order / total visits"},
+    {"metric": "Average order size", "target": "≥ regional plan", "how_to_measure": "Sales report by rep"},
+    {"metric": "Out-of-stock in assigned matrix", "target": "≤ 5% SKUs", "how_to_measure": "Shelf audit (internal + independent)"}
+  ]
+}

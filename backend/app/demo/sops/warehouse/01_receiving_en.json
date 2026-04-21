@@ -1,0 +1,75 @@
+{
+  "id": "warehouse-receiving",
+  "segment": "warehouse",
+  "title": "Inbound Receiving",
+  "description": "Standard for goods receiving: from truck arrival to WMS check-in.",
+  "estimated_duration_min": 30,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Pre-arrival preparation",
+      "content": "30 minutes before arrival, check in WMS: supplier, PO number, SKU list and quantities, payment terms (on delivery / net 30), unloading zone. Reserve the dock, prep equipment (pallet jack, forklift), people (minimum 2 warehouse workers + receiver). Unprepared = truck idle = supplier penalties from the store.",
+      "key_takeaway": "30 minutes prep. Truck shouldn't wait more than 15 minutes."
+    },
+    {
+      "order": 2,
+      "title": "Meeting the driver and checking paperwork",
+      "content": "Truck pulls in: verify BOL (bill of lading) and invoice. Must match: truck number, seal, consignor, item list, piece count. Driver signature on the BOL is mandatory. If seal is broken — don't unload, photograph, draft an incident report with driver signature, call the manager.",
+      "key_takeaway": "Broken seal = report + call. Unloading without check = unprovable later."
+    },
+    {
+      "order": 3,
+      "title": "External cargo inspection",
+      "content": "Before opening truck doors: inspect boxes through the opening. Crushed packaging, spills, odor — grounds for a report. Inside the truck: temperature (for dairy, frozen — mandatory data logger and pyrometer check), humidity, contamination. Photo-document anything problematic BEFORE unloading.",
+      "key_takeaway": "Photos before unloading. Proving damage happened in transit after the fact is nearly impossible."
+    },
+    {
+      "order": 4,
+      "title": "Unloading piece-by-piece",
+      "content": "Unload one pallet at a time, count boxes immediately, not 'we'll count later'. Count in the driver's presence. Quantity discrepancy = immediately logged on BOL ('received 98 cases vs 100 on manifest'), driver signature + yours. No signature = shortage on you.",
+      "key_takeaway": "Discrepancies logged in driver's presence. Driver leaves = no claim possible."
+    },
+    {
+      "order": 5,
+      "title": "Quality inspection",
+      "content": "Sample quality check: open 5-10% of boxes from the batch, verify contents. Expiry dates (minimum 70% remaining shelf life per contract), package integrity, SKU match. Damaged — to a separate zone, damage report with a photo of each unit. Don't mix damaged with sellable stock.",
+      "key_takeaway": "Damaged goes to a separate zone, separate report. Mixed with good = whole pallet goes back."
+    },
+    {
+      "order": 6,
+      "title": "WMS check-in",
+      "content": "In the WMS (SAP, Oracle, proprietary): create a receiving note based on the BOL. Scan barcode of each box (or pallet for pallet-receiving). Specify storage zone: main bin, picking zone, quarantine for new suppliers. Confirm receipt — only then the stock 'exists' in the system and becomes available for orders.",
+      "key_takeaway": "Stock exists physically but not in WMS = might as well not exist. Orders won't form, sales are lost."
+    },
+    {
+      "order": 7,
+      "title": "Putaway and paperwork",
+      "content": "Distribute stock across zones: fast-movers closer to shipping, heavy items low, light items high, fragile separately. ABC principle: A-items (20% SKUs, 80% sales) — the most accessible location. File BOL in the shift log, forward a copy to accounting within 24 hours.",
+      "key_takeaway": "A-items to the golden spot. BOL to accounting within 24 hours, or the supplier doesn't get paid."
+    }
+  ],
+  "quiz": [
+    {"question": "What to do if the truck seal is broken?", "options": ["Unload, figure it out later", "Don't unload, draft a report, call the manager", "Refuse acceptance", "Nothing"], "correct_index": 1, "explanation": "Unloading without a report = impossible to prove where the damage occurred."},
+    {"question": "When to log a quantity discrepancy?", "options": ["After the driver leaves", "In the driver's presence, with their signature", "Next day, in the report", "Don't log"], "correct_index": 1, "explanation": "Without driver signature, a supplier claim is legally impossible."},
+    {"question": "Sample inspection percentage?", "options": ["0% (trust everything)", "5-10% of boxes per batch", "100% (open everything)", "Always 1 box"], "correct_index": 1, "explanation": "5-10% is a statistically sufficient sample to catch systematic defects."},
+    {"question": "What is the ABC principle for putaway?", "options": ["Alphabetical order", "A-items (fast-movers) to the most accessible spot", "Box size", "Box weight"], "correct_index": 1, "explanation": "A-items drive 80% of sales. Faster access = higher picker productivity."},
+    {"question": "BOL submission deadline to accounting?", "options": ["Within a week", "Within 24 hours", "When you have time", "After inventory"], "correct_index": 1, "explanation": "Delay = delayed supplier payment = strained relationship."}
+  ],
+  "manager_checklist": [
+    "Preparation done 30 minutes before arrival",
+    "BOL and invoice reconciled, seal verified",
+    "Photos of cargo condition BEFORE unloading",
+    "Discrepancies logged with driver present and signed",
+    "5-10% quality sample inspection completed",
+    "Damaged goods in a separate zone with a report",
+    "Receipt checked into WMS same-day",
+    "BOL forwarded to accounting within 24 hours"
+  ],
+  "kpi": [
+    {"metric": "Truck receiving time", "target": "≤ 90 minutes from arrival to release", "how_to_measure": "WMS timestamps: arrival / report signature"},
+    {"metric": "Discrepancy-free receipts", "target": "≥ 95%", "how_to_measure": "WMS: receiving note vs BOL reconciliation"},
+    {"metric": "WMS check-in speed", "target": "100% same-day", "how_to_measure": "Arrival timestamp vs check-in timestamp"},
+    {"metric": "Damage/shortage claims to suppliers", "target": "100% resolved in warehouse's favor", "how_to_measure": "Procurement report on returns and chargebacks"}
+  ]
+}

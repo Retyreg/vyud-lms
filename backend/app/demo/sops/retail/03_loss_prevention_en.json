@@ -1,0 +1,75 @@
+{
+  "id": "retail-loss-prevention",
+  "segment": "retail",
+  "title": "Loss Prevention",
+  "description": "How to identify and safely respond to shoplifting on the sales floor without breaking the law.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Signs of potential theft",
+      "content": "What to watch for: a person wanders 10+ minutes with no apparent purpose, constantly glances at staff or cameras, wears off-season clothing (heavy coat in summer = big pockets), arrives in a group and one distracts you, avoids eye contact, nervously exits and re-enters. No single sign equals guilt — only combinations do.",
+      "key_takeaway": "Three signs combined = heightened attention. One sign = regular customer."
+    },
+    {
+      "order": 2,
+      "title": "Preventive behavior",
+      "content": "The most effective move is to signal your presence. Approach, greet: 'Hello, can I help you find something?'. 80% of thieves leave after this step. Walk the floor, don't stand behind the register all day. Eye contact says 'I see you'.",
+      "key_takeaway": "Greeting = 80% prevention. Thieves don't steal where they've been noticed."
+    },
+    {
+      "order": 3,
+      "title": "Observe, don't pursue",
+      "content": "If suspicion strengthens — observe from a distance, don't trail them. Radio security: 'Attention, sales floor, aisle X, male in blue jacket'. Call a colleague, don't be alone. Don't film on your phone without consent — that violates privacy laws.",
+      "key_takeaway": "Observe, don't pursue. Unfounded pursuit = defamation lawsuit."
+    },
+    {
+      "order": 4,
+      "title": "What NEVER to do",
+      "content": "Prohibited: physically restrain before they cross the register line (illegal until theft is completed), search the customer (police-only authority), threaten, yell, insult, publicly accuse without proof, grab clothing, block the exit. Violation = false imprisonment charge.",
+      "key_takeaway": "Before register — you observe. After register without payment — you call police. Never touch."
+    },
+    {
+      "order": 5,
+      "title": "The moment of crossing the register",
+      "content": "Theft is legally complete after crossing the register line without payment. Calmly approach: 'Hi there, did you maybe forget to pay for an item?'. Gives them a chance to explain — half the cases resolve without police. Lead them to a separate area.",
+      "key_takeaway": "First question is not 'why did you steal', but 'maybe you forgot to pay'. This matters legally."
+    },
+    {
+      "order": 6,
+      "title": "Calling police and documentation",
+      "content": "If theft is confirmed: call police (911/112), security guard detains (only licensed security — not you). Draft a detention report: date, time, circumstances, witnesses, item, value. Preserve camera footage until police arrive. Original to police, copy to store archive.",
+      "key_takeaway": "Licensed security detains. You are a witness and documentarian."
+    },
+    {
+      "order": 7,
+      "title": "Analysis and prevention",
+      "content": "After an incident: team debrief at morning huddle (no customer names, only patterns), review blind spots, relocate high-risk items closer to the register, add a camera. Repeated theft of the same item = likely an insider, not an outsider.",
+      "key_takeaway": "Repeated theft from a locked stockroom = look at staff, not the street."
+    }
+  ],
+  "quiz": [
+    {"question": "How many theft signs must align for suspicion?", "options": ["One is enough", "Three in combination", "Five mandatory", "Any sign = thief"], "correct_index": 1, "explanation": "One sign = regular customer. Three or more = heightened attention."},
+    {"question": "Most effective prevention?", "options": ["Hidden cameras", "Greeting and contact — 80% of thieves leave", "Guard at the door", "Tags on items"], "correct_index": 1, "explanation": "A greeting signals presence. Thieves avoid places where they've been seen."},
+    {"question": "Can you physically detain a customer on the floor?", "options": ["Yes, if sure of theft", "No — theft isn't complete until register line is crossed", "Only security", "Only if customer is aggressive"], "correct_index": 1, "explanation": "Before the register, theft isn't complete — detention = false imprisonment."},
+    {"question": "First phrase to a suspect after the register?", "options": ["'Thief, stop!'", "'Did you maybe forget to pay for an item?'", "'Police are coming'", "Grab silently"], "correct_index": 1, "explanation": "Polite framing gives a chance to explain — resolves 50% of cases without police."},
+    {"question": "Repeat theft of the same item from stockroom — who to look at?", "options": ["Customers", "Staff (insider)", "Suppliers", "Random chance"], "correct_index": 1, "explanation": "Repeat theft from a locked zone = insider. Retail stat: 40% of loss is staff."}
+  ],
+  "manager_checklist": [
+    "Staff knows the 6 signs of potential theft",
+    "Greets every incoming customer",
+    "Walks the floor, doesn't stay behind the register all day",
+    "Doesn't physically pursue customers",
+    "Radios security, doesn't act alone",
+    "Uses the phrasing 'did you maybe forget to pay'",
+    "Documents incidents with a report and preserves footage",
+    "Reviews theft patterns at team huddles"
+  ],
+  "kpi": [
+    {"metric": "Shrinkage rate", "target": "≤ 1.2% of turnover", "how_to_measure": "Inventory count: book vs physical"},
+    {"metric": "Prevented thefts", "target": "≥ 70% of attempts stopped before register", "how_to_measure": "Incident log: observations vs completed thefts"},
+    {"metric": "Complaints about baseless suspicion", "target": "0 complaints per quarter", "how_to_measure": "Reviews + consumer protection inquiries"},
+    {"metric": "False-imprisonment lawsuits", "target": "0 lawsuits", "how_to_measure": "Legal department records"}
+  ]
+}

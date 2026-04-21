@@ -1,0 +1,74 @@
+{
+  "id": "hotel-guest-checkin",
+  "segment": "hotel",
+  "title": "Front Desk Guest Check-in",
+  "description": "Complete check-in process: from greeting to key handover and upsell.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Greeting and first impression",
+      "content": "Stand up when a guest approaches. Eye contact, smile, time-of-day greeting: 'Good morning/afternoon/evening, welcome to our hotel!'. If the guest has luggage — offer bell service. If the guest looks tired — speak softer and shorter.",
+      "key_takeaway": "Always stand. A seated front-desk agent says 'I don't care'."
+    },
+    {
+      "order": 2,
+      "title": "Finding the reservation in PMS",
+      "content": "Ask for the guest's last name. Find the booking in PMS (Opera, Cloudbeds, Mews). Verify: dates, room type, payment method, special requests (early check-in, crib, dietary). If not found — ask for confirmation number or email, never say 'we don't have you'.",
+      "key_takeaway": "Never say 'we don't have you'. Always 'let's find it — do you have a confirmation?'."
+    },
+    {
+      "order": 3,
+      "title": "Documents and registration",
+      "content": "Ask for passport (ID for locals). Scan or photocopy. Fill the registration card or confirm in PMS. For foreign guests — legal registration required within 24 hours depending on country. Return documents immediately — don't hold them.",
+      "key_takeaway": "Passport returned = forgotten. Holding ID = complaint and fine."
+    },
+    {
+      "order": 4,
+      "title": "Upsell: room upgrade attempt",
+      "content": "Offer an upgrade with reasoning: 'We have a suite available tonight, only $30 more — bigger bathroom and park view'. Don't push. If the guest isn't interested — drop it after the first 'no'. Upsell = +3-5% shift revenue.",
+      "key_takeaway": "One attempt. Heard 'no' — drop the topic. Pushiness = bad review."
+    },
+    {
+      "order": 5,
+      "title": "Payment and deposit",
+      "content": "Explain: 'In addition to room charges, we'll hold a $100 deposit for minibar and incidentals — it's released on check-out'. Pre-authorize the card. For cash payment — collect cash deposit with a receipt. Always mention deposit upfront, never 'we'll discuss at check-out'.",
+      "key_takeaway": "Deposit talk happens before, not after. Surprises at check-out = conflict."
+    },
+    {
+      "order": 6,
+      "title": "Orientation and keys",
+      "content": "State room number and floor. Explain: Wi-Fi password (or QR), breakfast hours and location, spa/gym access, check-out time (noon). Hand the keycard in a sleeve with the room number. For VIPs — walk them to the elevator. Offer luggage help again.",
+      "key_takeaway": "5 things: Wi-Fi, breakfast, spa, check-out, emergency number. No more."
+    },
+    {
+      "order": 7,
+      "title": "15-minute follow-up",
+      "content": "15 minutes after check-in, call the room: 'Is everything alright? Everything working?'. This catches 80% of issues before they become complaints (TV not working, no towels, too cold). Log requests in PMS. This one call = the difference between 8.2 and 8.8 on Booking.",
+      "key_takeaway": "One call at 15 minutes = +0.6 on Booking. Seriously."
+    }
+  ],
+  "quiz": [
+    {"question": "How do you greet a guest?", "options": ["Seated, polite hello", "Standing, with smile and time-of-day greeting", "Silently, with a nod", "Loudly: 'Next!'"], "correct_index": 1, "explanation": "Standing is the baseline. A seated agent looks indifferent."},
+    {"question": "If the reservation isn't found, what do you say?", "options": ["'We don't have you'", "'Let's find it — do you have a confirmation?'", "'System error'", "'Come back later'"], "correct_index": 1, "explanation": "Never 'we don't have you' — sounds like rejection and triggers conflict."},
+    {"question": "When do you mention the deposit?", "options": ["At check-in, BEFORE payment", "At check-out when we return it", "Don't mention — surprise", "Only if asked"], "correct_index": 0, "explanation": "Upfront. Surprises = bad reviews. Transparency = trust."},
+    {"question": "How many upsell attempts?", "options": ["Until three refusals", "One, drop after 'no'", "Until the guest agrees", "Don't offer at all"], "correct_index": 1, "explanation": "One attempt with reasoning. After 'no' — continue check-in."},
+    {"question": "What does the 15-minute follow-up call do?", "options": ["Nothing, it's a formality", "Catches 80% of issues before complaints", "Just annoys guests", "Only needed for VIPs"], "correct_index": 1, "explanation": "One call = +0.6 on Booking on average. Proven in practice."}
+  ],
+  "manager_checklist": [
+    "Agent stands for every guest",
+    "Knows 3 ways to find a booking (name, confirmation, email)",
+    "Avoids phrases 'we don't have you' / 'system error'",
+    "Makes one upsell attempt with reasoning",
+    "Announces deposit BEFORE payment",
+    "Informs on 5 key things (not more)",
+    "Makes follow-up call 15 minutes after check-in"
+  ],
+  "kpi": [
+    {"metric": "Check-in time from arrival to keys", "target": "≤ 5 minutes", "how_to_measure": "PMS timestamps or video review"},
+    {"metric": "Upsell conversion rate", "target": "≥ 15% of guests take upgrade", "how_to_measure": "PMS: 'upgrade' flag / total check-ins"},
+    {"metric": "Booking.com rating", "target": "≥ 8.8", "how_to_measure": "30-day average"},
+    {"metric": "Follow-up call coverage", "target": "100% of check-ins", "how_to_measure": "PMS call log"}
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "id": "fmcg-planogram",
+  "segment": "fmcg",
+  "title": "Planogram Execution",
+  "description": "FMCG merchandising rules: how to place product so it sells, not just sits there.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "What a planogram is and why it matters",
+      "content": "A planogram is the SKU layout on a shelf based on shopper logic and brand share. Its job: drive sales through correct placement. Not 'pretty' — 'it sells'. Planograms are agreed with the retailer, approved by KAM, passed to the rep. Non-compliance = fine or loss of shelf space.",
+      "key_takeaway": "Planogram = document, not a suggestion. Breach = lost shelf."
+    },
+    {
+      "order": 2,
+      "title": "The golden shelf",
+      "content": "Shelf levels by value: 1) eye level (150-170 cm / 60-67 in) — gold, sells the most; 2) hand level (100-150 cm) — silver; 3) waist level (70-100 cm) — bronze; 4) floor level (< 70 cm) — 'the grave'. Bestsellers and premium — eye level. Kids' products — at kids' eye level (60-90 cm).",
+      "key_takeaway": "Eye level = gold. Floor level = the grave. Kids' products — lower, at kids' eye level."
+    },
+    {
+      "order": 3,
+      "title": "Facings rule",
+      "content": "Facing = units facing the shopper. Rule: 1 SKU = minimum 2 facings (otherwise invisible, no buyers). Bestseller — 4-6 facings. Brand's share of facings should match its share of category sales (80/20 rule). Too few facings on a bestseller = lost sales.",
+      "key_takeaway": "Minimum 2 facings. Below that, the product is invisible. Bestseller = 4-6 facings."
+    },
+    {
+      "order": 4,
+      "title": "FIFO rotation",
+      "content": "First In, First Out — first in goes out first. Put new stock at the BACK, pull old stock to the FRONT. Check dates: expiring in a week → promo zone or checkout zone. FIFO violation = write-offs (loss to distributor or store depending on contract). Do this every visit.",
+      "key_takeaway": "New to the back, old to the front. Always. Every visit. No exceptions."
+    },
+    {
+      "order": 5,
+      "title": "Grouping by shopper logic",
+      "content": "Shoppers think in categories, not brands. Group: by flavor (chocolate / strawberry / vanilla), by size (0.5L / 1L / 1.5L), by use case (breakfast / kids / diet). Within a group — by brand and price (low-to-high or the reverse, per retailer strategy).",
+      "key_takeaway": "Group first, then brands within the group. Shoppers search 'coffee', not 'Nestle'."
+    },
+    {
+      "order": 6,
+      "title": "Cross-merchandising",
+      "content": "Combining categories bought together: tea + cookies, pasta + sauce, beer + snacks, diapers + baby wipes. Placed 'one step apart' = +8-15% average basket. Negotiate with the store — a secondary pallet in the right zone. 'Better together' POSM amplifies the effect.",
+      "key_takeaway": "Tea + cookies = +8-15% basket. Cross-merch is the cheapest sales lift tool."
+    },
+    {
+      "order": 7,
+      "title": "Verification and logging",
+      "content": "After merchandising: photograph the shelf from three angles (wide, close-up, price tag). Compare with the planogram in the app — green check or red flag. Log deviations with reason (out of stock, no space, competitor on promo). CRM report on the day of the visit, not 'later'.",
+      "key_takeaway": "Three photos. Planogram comparison. Deviation reason. Same-day CRM entry."
+    }
+  ],
+  "quiz": [
+    {"question": "What is the 'golden shelf'?", "options": ["The top shelf", "Eye level (150-170 cm / 60-67 in)", "The checkout zone", "The bottom shelf"], "correct_index": 1, "explanation": "Eye level sells the most — it's the spot for bestsellers and premium."},
+    {"question": "Minimum facings per SKU?", "options": ["1", "2", "4", "10"], "correct_index": 1, "explanation": "Below 2 facings = invisible product. Shoppers don't notice it in the mass."},
+    {"question": "What does FIFO mean?", "options": ["First In First Out — old to front, new to back", "Fixed In Fixed Out", "Free Item For Order", "Not related to merchandising"], "correct_index": 0, "explanation": "Rotation prevents write-offs. FIFO violation = direct loss."},
+    {"question": "How to group products on the shelf?", "options": ["By brand", "By shopper logic (category → brand → price)", "Alphabetically", "Randomly"], "correct_index": 1, "explanation": "Shoppers search for 'coffee', not 'Nestle'. Category first, brands within it."},
+    {"question": "Cross-merchandising is:", "options": ["Online sales", "Placing related categories together (tea+cookies)", "Discount on second item", "In-store advertising"], "correct_index": 1, "explanation": "Cross-merch delivers +8-15% basket — the cheapest sales lift tool."}
+  ],
+  "manager_checklist": [
+    "Rep knows the planogram and has it in the app",
+    "Bestsellers placed at eye level",
+    "Minimum 2 facings per SKU",
+    "FIFO enforced (check dates on front units)",
+    "Grouped by shopper logic",
+    "Proposed cross-merchandising with a relevant category",
+    "Took 3 shelf photos and logged CRM entry same-day"
+  ],
+  "kpi": [
+    {"metric": "Planogram compliance", "target": "≥ 90%", "how_to_measure": "Shelf audit + app comparison"},
+    {"metric": "Share of shelf (brand facings)", "target": "≥ category market share", "how_to_measure": "Facing count vs competitors at audit"},
+    {"metric": "Out-of-stock", "target": "≤ 5% SKUs missing from shelf", "how_to_measure": "Independent audit or rep scan"},
+    {"metric": "Sales lift after planogram rollout", "target": "+10-20% in 90 days", "how_to_measure": "Before/after sales comparison, seasonality-adjusted"}
+  ]
+}

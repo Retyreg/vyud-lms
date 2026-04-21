@@ -1,0 +1,74 @@
+{
+  "id": "cafe-guest-complaints",
+  "segment": "cafe_restaurant",
+  "title": "Guest Greeting and Complaint Handling",
+  "description": "How to properly greet a restaurant guest and defuse dissatisfaction before it becomes a bad review.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "The first 30 seconds rule",
+      "content": "A guest must be noticed within 10 seconds of entry and seated within 30 seconds. Even if no tables are free — approach immediately, greet them, say: 'A table will open in ~5 minutes, can I offer you the bar?'. Silence is the #1 reason guests walk out.",
+      "key_takeaway": "10 seconds for eye contact, 30 seconds for first word. Silence equals rejection."
+    },
+    {
+      "order": 2,
+      "title": "Reading the guest's mood",
+      "content": "Couple on a date — don't over-talk. Family with kids — immediately offer kids' menu and coloring. Business lunch — minimum words, maximum speed. Tourist — suggest what to order. Adapt to the guest type, don't recite a memorized script.",
+      "key_takeaway": "Scripts are for rookies. A pro reads the guest in 5 seconds."
+    },
+    {
+      "order": 3,
+      "title": "The LAST method for complaints",
+      "content": "L — Listen (don't interrupt, let them vent). A — Apologize (sincerely, without excuses: 'I'm so sorry this happened'). S — Solve (offer a fix: replace, comp the item, send a treat). T — Thank (thank them for the feedback). LAST works in 90% of cases.",
+      "key_takeaway": "Listen → Apologize → Solve → Thank. Never start with 'but…'."
+    },
+    {
+      "order": 4,
+      "title": "What NOT to say",
+      "content": "Banned phrases: 'Not my section', 'Chef is busy', 'Everyone cooks it this way', 'You're wrong', 'That's just our policy'. Each one triggers a bad review. Replace with: 'Let me help you', 'We'll fix this right now', 'I understand'.",
+      "key_takeaway": "Five banned phrases. Learn them and never say them."
+    },
+    {
+      "order": 5,
+      "title": "Escalating to the manager",
+      "content": "Call the manager if: guest demands it, guest raises voice, refund is involved, conflict with another guest, guest is intoxicated. Don't try to solve alone. Your role — keep a friendly tone until a senior arrives. Manager must come within 2 minutes.",
+      "key_takeaway": "Five situations where you escalate immediately. No heroics needed."
+    },
+    {
+      "order": 6,
+      "title": "Compensation and its limits",
+      "content": "You can offer yourself: comp a dish, send a compliment from the house (dessert, drink). Manager only: discount on the full bill, refund, free future visit. Never promise what you can't deliver.",
+      "key_takeaway": "You = compliment. Manager = discount and refund. Clear boundaries."
+    },
+    {
+      "order": 7,
+      "title": "Closing the incident and saying goodbye",
+      "content": "After resolving — check back in 5 minutes: 'All good?'. Show you remember the situation. On farewell — sincerely apologize again and thank them: 'Thanks for giving us a chance to fix it'. Invite them back. A guest whose complaint was handled well is more loyal than one who never complained.",
+      "key_takeaway": "A well-handled complaint = +1 regular. A bad one = -10 through word of mouth."
+    }
+  ],
+  "quiz": [
+    {"question": "Within how many seconds must a guest be noticed?", "options": ["5 seconds", "10 seconds", "30 seconds", "A minute"], "correct_index": 1, "explanation": "10 seconds for eye contact is the international standard."},
+    {"question": "What does LAST stand for?", "options": ["Last — last chance", "Listen, Apologize, Solve, Thank", "Leave, Act, Sort, Talk", "A cashier term"], "correct_index": 1, "explanation": "The classic complaint-handling method: listen, apologize, solve, thank."},
+    {"question": "Which phrase is banned when speaking to a guest?", "options": ["'Let me help you'", "'Not my section'", "'I understand'", "'We'll fix this now'"], "correct_index": 1, "explanation": "'Not my section' triggers bad reviews. The guest doesn't care whose section it is."},
+    {"question": "When should you call the manager immediately?", "options": ["Any complaint", "Guest demands manager or refund is involved", "Only if guest yells", "Never, solve it yourself"], "correct_index": 1, "explanation": "Five escalation triggers exist; manager demand and refund are the main ones."},
+    {"question": "What CAN you offer yourself as compensation?", "options": ["Discount on the full bill", "Refund", "Compliment from the house", "Free future visit"], "correct_index": 2, "explanation": "A compliment (dessert, drink) is within your authority. The rest goes through a manager."}
+  ],
+  "manager_checklist": [
+    "Guest noticed within 10 seconds of entry",
+    "Server adapts to guest type (couple/family/business)",
+    "Uses LAST on complaints, doesn't make excuses",
+    "Avoids banned phrases",
+    "Escalates to manager in the right situations",
+    "Doesn't exceed compensation limits",
+    "Checks back in 5 minutes to verify the fix"
+  ],
+  "kpi": [
+    {"metric": "Guest greeting speed", "target": "≤ 10 seconds to eye contact", "how_to_measure": "Mystery shopper / camera review, 10 samples/shift"},
+    {"metric": "Share of complaints resolved without escalation", "target": "≥ 70%", "how_to_measure": "Incident log: total complaints vs escalations"},
+    {"metric": "Google / Yelp rating", "target": "≥ 4.6", "how_to_measure": "30-day average, recalculated weekly"},
+    {"metric": "Guest return rate after a complaint", "target": "≥ 40%", "how_to_measure": "CRM: track if the guest returned within 60 days"}
+  ]
+}

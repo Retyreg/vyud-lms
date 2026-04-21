@@ -1,0 +1,74 @@
+{
+  "id": "fmcg-objection-handling",
+  "segment": "fmcg",
+  "title": "Objection Handling in B2B Sales",
+  "description": "How to handle typical buyer and store-manager objections at trade outlets.",
+  "estimated_duration_min": 20,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "What an objection really is",
+      "content": "An objection is not 'no' but 'give me more info so I can say yes'. 80% of the time, an objection hides a fear (I'll lose money, I'll be stuck with dead stock, it won't sell). Your job — not to argue, but to understand the fear and remove it with numbers. An objection is free feedback.",
+      "key_takeaway": "Objection = fear, not rejection. Arguing is pointless, surface the fear."
+    },
+    {
+      "order": 2,
+      "title": "The JCAN algorithm",
+      "content": "J — Join ('I understand, I'd feel the same'). C — Clarify ('What specifically is driving that concern?'). A — Answer (concrete numbers and facts, no generalities). N — Next step ('Given these terms, shall we do it?'). JCAN works on any objection. Don't jump to A until you understand the real issue.",
+      "key_takeaway": "Join → Clarify → Answer → Next step. Four steps, not one."
+    },
+    {
+      "order": 3,
+      "title": "Objection: 'No shelf space'",
+      "content": "Real cause: 'I don't want to remove what's already working'. Solution: show turnover data on category competitors — which SKUs move less than 1 unit/day. Propose a swap: 'Remove this, place ours — we guarantee turnover based on the neighboring account X units/week'. Take on the risk: 'If it doesn't sell in 2 weeks, we take it back'.",
+      "key_takeaway": "No space = replace a slow SKU, not 'shove everyone over'. Risk on us."
+    },
+    {
+      "order": 4,
+      "title": "Objection: 'Too expensive'",
+      "content": "Real cause: 'I don't see how much I'll earn'. Solution: shift the conversation from 'price' to 'margin in dollars'. Example: 'This yogurt costs $0.60 wholesale, sells for $0.90 = $0.30 margin per unit. Sells 10/day = $3/day = $90/month from one shelf facing'. Don't compare to cheap alternatives — compare to turnover.",
+      "key_takeaway": "Translate 'expensive' into 'how much you'll earn in dollars'. Percentages don't work."
+    },
+    {
+      "order": 5,
+      "title": "Objection: 'It doesn't sell'",
+      "content": "Real cause: often true, but the reason is placement, not the product. Solution: walk to the shelf with the buyer. Check: shelf level (maybe 'the grave'), facings (maybe 1), neighbors (maybe a cheap competitor next to it), price (store may have marked it up). 70% of cases resolve via re-merchandising.",
+      "key_takeaway": "Walk the shelf. 70% of 'doesn't sell' = placement problem, not product."
+    },
+    {
+      "order": 6,
+      "title": "Objection: 'We already have a supplier'",
+      "content": "Real cause: 'I'm too lazy to change what works'. Solution: don't propose replacement, propose addition. 'I'm not asking you to remove X. I'm proposing our SKU as an alternative — let them compete on the shelf. If ours sells better in a month, you decide what to keep'. Removes fear and gives the buyer control.",
+      "key_takeaway": "Don't replace — add. Let them compete on the shelf."
+    },
+    {
+      "order": 7,
+      "title": "Objection: 'I'll think about it / need to check'",
+      "content": "Real cause: 'I don't want to say no to your face'. Solution: don't accept 'I'll think about it'. Ask: 'Who specifically will you check with? When can we make a decision — does Thursday work?'. Book a specific return date + leave them with material (price list, deck). No date = 'I'll think' = lost account.",
+      "key_takeaway": "'I'll think' without a date = 'no'. Book a specific date and leave material in their hands."
+    }
+  ],
+  "quiz": [
+    {"question": "What's really behind an objection?", "options": ["Final rejection", "Fear: 'I'll lose money / it won't sell'", "Buyer rudeness", "Nothing special"], "correct_index": 1, "explanation": "Objection = fear. Arguing is pointless — remove the fear with numbers."},
+    {"question": "What does the JCAN algorithm mean?", "options": ["Just Check And Negotiate", "Join, Clarify, Answer, Next step", "Judge Customer And Negotiate", "Just Close And Nod"], "correct_index": 1, "explanation": "Four steps for handling an objection. Out-of-order = argument, not dialogue."},
+    {"question": "'Too expensive' — how to handle?", "options": ["Lower the price", "Translate to margin in dollars, show earnings", "Agree and leave", "Get offended"], "correct_index": 1, "explanation": "Buyers live in dollars. Percentages are abstract. Show concrete earnings."},
+    {"question": "'It doesn't sell' — first action?", "options": ["Lower the price", "Walk to the shelf with the buyer", "Agree", "Argue"], "correct_index": 1, "explanation": "70% of 'doesn't sell' cases = merchandising problem, not product."},
+    {"question": "Client said 'I'll think' — what do you do?", "options": ["Agree and leave", "Book a specific return date", "Keep selling right now", "Call tomorrow without agreement"], "correct_index": 1, "explanation": "Without a date, 'I'll think' = soft 'no'. Specific date keeps the deal alive."}
+  ],
+  "manager_checklist": [
+    "Rep doesn't argue, surfaces the underlying fear",
+    "Applies JCAN algorithm to every objection",
+    "On 'no space' — proposes a swap with risk absorbed",
+    "On 'too expensive' — calculates margin in dollars, not percentages",
+    "On 'doesn't sell' — walks to the shelf to check merchandising",
+    "On 'we have a supplier' — proposes addition, not replacement",
+    "On 'I'll think' — books a specific return date"
+  ],
+  "kpi": [
+    {"metric": "Post-objection conversion", "target": "≥ 40% of objections convert to order", "how_to_measure": "CRM: objection tags + visit outcome"},
+    {"metric": "Average order from previously-objecting buyers", "target": "≥ regional average × 1.1", "how_to_measure": "CRM: segmentation by objection tag"},
+    {"metric": "Share of 'I'll think' with booked return date", "target": "≥ 90%", "how_to_measure": "CRM: mandatory next-visit date field"},
+    {"metric": "6-month client retention", "target": "≥ 85% of active base", "how_to_measure": "CRM: repeat orders from objection accounts"}
+  ]
+}

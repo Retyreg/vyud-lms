@@ -1,0 +1,74 @@
+{
+  "id": "hotel-housekeeping",
+  "segment": "hotel",
+  "title": "Room Housekeeping",
+  "description": "Standard for cleaning a room after checkout: sequence, timing, cleanliness standard.",
+  "estimated_duration_min": 25,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Preparation and entry",
+      "content": "Check the report: checkout clean or stayover clean (different standards). Knock 3 times with pauses, announce 'Housekeeping!'. Open with keycard, leave the door open (protection against theft accusations). Put on gloves.",
+      "key_takeaway": "Three knocks + 'housekeeping' + open door. This protects the staff."
+    },
+    {
+      "order": 2,
+      "title": "Inspection and trash removal",
+      "content": "Window — open for 5-10 minutes airing. Check for guest belongings left behind — immediately log in the lost-and-found register with a photo. Trash: three bins to the hallway — general, paper/plastic, hazardous (glass, blades).",
+      "key_takeaway": "Forgotten item = lost-and-found log + photo. No record = problem."
+    },
+    {
+      "order": 3,
+      "title": "Bed linen change",
+      "content": "Remove linen WITHOUT shaking (mites, insects). Visual mattress inspection — stains, damage. Make the bed to hotel standard: fitted sheet → duvet cover → pillows → bedspread. Towels — only folded 'fan-style' on the rack. Robes — on the bathroom door.",
+      "key_takeaway": "Never shake linen. Could spread mites to other rooms."
+    },
+    {
+      "order": 4,
+      "title": "Bathroom (the most critical)",
+      "content": "Order: toilet → sink → shower/tub → mirror → floor. Detergent acts for 3 minutes, don't wipe immediately. Limescale — vinegar or dedicated product, never abrasives. Hair in drains goes to trash, not flushed (clogs).",
+      "key_takeaway": "Toilet first, floor last. Reverse order = cross-contamination."
+    },
+    {
+      "order": 5,
+      "title": "Dust and surfaces",
+      "content": "Top-down: lamps and top of wardrobe first, then tables and nightstands, then baseboards. Remote, switches, handles — disinfect separately (90% of bacteria in the room). Phone — wipe handset and base. Glass — spray + lint-free cloth.",
+      "key_takeaway": "Top-down. Remote and handles are the top bacteria sources."
+    },
+    {
+      "order": 6,
+      "title": "Replenishing amenities",
+      "content": "Checklist: bottled water (2x), shampoo, gel, soap, shower cap, comb, hotel info folder, pen, notepad, trash liner. Check minibar against inventory — log what the guest used, submit to the supervisor for billing.",
+      "key_takeaway": "Minibar log on the card. Missed it = hotel loses money."
+    },
+    {
+      "order": 7,
+      "title": "Final inspection and handover",
+      "content": "Step 2 meters back from the door and inspect the room like a guest: everything in place, fresh smell, curtains per standard. Supervisor check: spot-check 1 in 4 rooms, signature on checklist. Only after signature is the room sellable in PMS.",
+      "key_takeaway": "Look like a guest, not like a cleaner. Two meters from the door is the right position."
+    }
+  ],
+  "quiz": [
+    {"question": "What do you do before entering a room?", "options": ["Enter silently", "Knock once and enter", "Three knocks + 'housekeeping' + open door", "Call the front desk"], "correct_index": 2, "explanation": "Three knocks is IHG/Marriott standard. Open door protects against accusations."},
+    {"question": "In what order do you clean the bathroom?", "options": ["Floor → mirror → toilet", "Toilet → sink → shower → mirror → floor", "All at once", "Bottom to top"], "correct_index": 1, "explanation": "Toilet first, floor last. Reverse order spreads bacteria."},
+    {"question": "Where do you log guest belongings left behind?", "options": ["Throw away", "Lost-and-found register with photo", "Keep them", "Leave in hallway"], "correct_index": 1, "explanation": "Log + photo — mandatory. Legal protection for both hotel and staff."},
+    {"question": "What must you NOT do with linen?", "options": ["Fold it", "Shake it (mite risk)", "Remove by hand", "Change daily"], "correct_index": 1, "explanation": "Shaking can spread mites and insects to other rooms."},
+    {"question": "What requires separate disinfection?", "options": ["Floor and ceiling", "Remote, switches, handles — 90% of bacteria", "Only the bed", "Nothing extra"], "correct_index": 1, "explanation": "Touchpoints carry 90% of bacteria. Floor is secondary."}
+  ],
+  "manager_checklist": [
+    "Housekeeper knocks 3 times and leaves door open",
+    "Logs forgotten items with photo",
+    "Does not shake linen",
+    "Follows bathroom cleaning order (toilet first)",
+    "Disinfects remote, switches, handles separately",
+    "Records consumed minibar items",
+    "Performs final inspection 2 meters from the door"
+  ],
+  "kpi": [
+    {"metric": "Single room cleaning time (checkout clean)", "target": "≤ 25 minutes", "how_to_measure": "Housekeeping management system or manual timing"},
+    {"metric": "Rooms passing inspection on first try", "target": "≥ 90%", "how_to_measure": "Supervisor report, 1 in 4 rooms checked"},
+    {"metric": "Minibar losses", "target": "≤ 2% of minibar revenue", "how_to_measure": "Inventory vs actual revenue reconciliation"},
+    {"metric": "Cleanliness complaints in reviews", "target": "≤ 1 mention per 100 guests", "how_to_measure": "Booking.com, TripAdvisor, internal forms monitoring"}
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "id": "cafe-shift-closing",
+  "segment": "cafe_restaurant",
+  "title": "Shift Closing and Handover",
+  "description": "Full closing cycle: from last guest to handing off the shift to the next manager.",
+  "estimated_duration_min": 30,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Final hour: Last Call",
+      "content": "60 minutes before close — warn the team: quick items only. 30 minutes before — stop-list on the kitchen (no complex dishes). 15 minutes before — last call to guests ('We're closing in 15 minutes, anything else?'). Never rush guests out harshly.",
+      "key_takeaway": "60 → 30 → 15 minutes. Three warning waves, not one abrupt 'we're closed'."
+    },
+    {
+      "order": 2,
+      "title": "Kitchen closing",
+      "content": "Chef: count inventory, photograph the fridge, dispose of expired items with a write-off form. Sanitize all surfaces, drain fryer oil, turn off the hood 20 minutes after the last fry. Log fridge temperatures.",
+      "key_takeaway": "Write-offs go on a form, not silently into the trash. That's company money."
+    },
+    {
+      "order": 3,
+      "title": "Dining room cleanup",
+      "content": "Tables: align, sanitize, set flatware to standard. Floor: sweep → wet mop → dry wipe. Restrooms: separate equipment set, checklist on the door. Windows and storefront — weekly (Fridays). Take trash to the dumpster, tie bags.",
+      "key_takeaway": "Restroom equipment is SEPARATE. Mixing = health inspection fine."
+    },
+    {
+      "order": 4,
+      "title": "Cash drop",
+      "content": "Count cash twice (you + witness from staff). Reconcile with the Z-report. Over $500 — drop to safe immediately. Fill the cash log: date, amount, signature. Discrepancy > $2 — incident memo, witness signature, cash drawer photo.",
+      "key_takeaway": "Two counters, full documentation. Hidden discrepancies = criminal liability."
+    },
+    {
+      "order": 5,
+      "title": "Shift report",
+      "content": "Fill the shift form: revenue, check count, average ticket, guest count, conversion, top-3 dishes, complaints/compliments, incidents (fights, fire, damage). Photo of the log. Submit to the manager chat by 11:59 PM.",
+      "key_takeaway": "No report by midnight = shift not closed. Accounting won't accept it."
+    },
+    {
+      "order": 6,
+      "title": "Safety walkthrough",
+      "content": "Walk through: all windows closed, all valves (water, gas) shut, kitchen equipment off except fridges, dining lights off, alarm armed. Cameras: confirm they're recording (indicator on). Lock the door with two turns of the key.",
+      "key_takeaway": "Gas → water → electric. Three shut valves = quiet night."
+    },
+    {
+      "order": 7,
+      "title": "Handover",
+      "content": "If handing to next manager: walk the floor and kitchen together, show status, hand over keys and cash, both sign the handover log. Document problems in writing (not 'you'll see tomorrow'). No signature = no handover.",
+      "key_takeaway": "Signed log = your protection. No signature means no handover."
+    }
+  ],
+  "quiz": [
+    {"question": "How many minutes before closing is last call announced?", "options": ["5 minutes", "15 minutes", "30 minutes", "60 minutes"], "correct_index": 1, "explanation": "15 minutes is optimal: guests have time to pay without feeling rushed."},
+    {"question": "What do you do with expired products?", "options": ["Throw them out silently", "File a write-off form", "Give them to staff", "Resell at a discount"], "correct_index": 1, "explanation": "A write-off form is mandatory for accounting, protecting the business."},
+    {"question": "At what cash discrepancy is an incident memo required?", "options": ["Any discrepancy", "More than $2", "More than $20", "Never"], "correct_index": 1, "explanation": "Over $2 = mandatory documentation. Below = standard cash log only."},
+    {"question": "By when must the shift report be submitted?", "options": ["By closing", "By 11:59 PM same day", "By next morning", "Within 24 hours"], "correct_index": 1, "explanation": "By midnight — or accounting won't close the day."},
+    {"question": "What must be shut down before leaving?", "options": ["Just electricity", "Gas, water, windows closed, alarm on", "Just the alarm", "Nothing, all automatic"], "correct_index": 1, "explanation": "Gas-water-windows-alarm is the basic safety checklist."}
+  ],
+  "manager_checklist": [
+    "Team was warned 60/30/15 minutes before closing",
+    "Write-off form completed and signed",
+    "Kitchen closed, temperatures logged",
+    "Dining room cleaned to standard (separate restroom equipment)",
+    "Cash counted by two people, amount documented",
+    "Shift report submitted by 11:59 PM",
+    "Safety walkthrough completed and signed",
+    "Handover log signed by both parties"
+  ],
+  "kpi": [
+    {"metric": "Shift closing time", "target": "≤ 45 minutes after last guest", "how_to_measure": "Log timestamps: last order vs departure"},
+    {"metric": "Cash report accuracy", "target": "≥ 99% of shifts with no discrepancy > $2", "how_to_measure": "30-day accounting report"},
+    {"metric": "Report timeliness", "target": "100% of reports by 11:59 PM", "how_to_measure": "Manager chat log"},
+    {"metric": "Monthly safety incidents", "target": "0 incidents (loss, theft, damage)", "how_to_measure": "Incident log + camera review"}
+  ]
+}

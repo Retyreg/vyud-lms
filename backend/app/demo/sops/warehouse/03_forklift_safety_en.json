@@ -1,0 +1,75 @@
+{
+  "id": "warehouse-forklift-safety",
+  "segment": "warehouse",
+  "title": "Forklift Safety",
+  "description": "Rules for safe forklift operation: from inspection to parking. Non-compliance = injury, death, criminal liability.",
+  "estimated_duration_min": 25,
+  "language": "en",
+  "steps": [
+    {
+      "order": 1,
+      "title": "Authorization and documents",
+      "content": "Eligible to operate a forklift: 18+ years old, certified forklift operator (OSHA-compliant in the US or equivalent), medically cleared, completed safety briefing (signed in the log), equipped with PPE (hard hat, hi-vis vest, steel-toe boots). Missing any one = not authorized. 'Friendly' authorization = the shift manager carries the liability.",
+      "key_takeaway": "Five authorization conditions. Missing one = shift without a forklift."
+    },
+    {
+      "order": 2,
+      "title": "Pre-shift walk-around inspection",
+      "content": "Walk around the forklift clockwise: 1) fork integrity, no cracks; 2) tire pressure, no cuts; 3) oil, hydraulic, battery leaks (stains under the machine); 4) working headlights, horn, strobe light; 5) seat belt functionality. Log the check in the inspection register. Defect = don't drive.",
+      "key_takeaway": "5 inspection points. Takes 3 minutes. A hidden defect = destroyed stock or a corpse."
+    },
+    {
+      "order": 3,
+      "title": "Floor movement rules",
+      "content": "Speed: max 10 km/h (6 mph) in open zones, 5 km/h in narrow aisles and at turns. Stay right. At intersections — full stop, horn, visual check. Turning — only in designated zones. Reverse — always over-the-shoulder, not via mirror alone. Pedestrians always have priority.",
+      "key_takeaway": "10 km/h isn't slow. A loaded forklift weighs 5 tons — hard to stop."
+    },
+    {
+      "order": 4,
+      "title": "Load handling",
+      "content": "Before lifting: confirm the pallet is stable, forks are fully inserted, load doesn't overhang. Lifting: smooth, forks parallel to the floor. Driving with load: forks 15-20 cm (6-8 in) off the floor, mast tilted slightly back. Never lift load above 2 meters while moving — center of gravity shifts, tipping. Oversized load — tandem with a co-worker, no heroics.",
+      "key_takeaway": "Forks 15-20 cm off the floor while moving. Higher = tipover risk."
+    },
+    {
+      "order": 5,
+      "title": "Absolute prohibitions",
+      "content": "Prohibited: 1) carrying people on forks or in the cab (operator only); 2) leaving the key unattended in the forklift; 3) operating with load raised above people; 4) letting go of the wheel while moving; 5) using a phone while driving; 6) operating while impaired or over-tired (> 8 hours shift); 7) ignoring intersection horn protocol. Violation = immediate termination.",
+      "key_takeaway": "Seven prohibitions. Any one = termination. Not a policy quirk — it's your life."
+    },
+    {
+      "order": 6,
+      "title": "Emergency response",
+      "content": "Tipover: do NOT jump out — statistics show operators get injured precisely when trying to jump. Grip the wheel, press into the seat, seatbelt will hold you. Pedestrian collision: immediate stop, don't move, radio 911, first aid if trained, don't leave the scene until EMS and management arrive.",
+      "key_takeaway": "Tipover — DO NOT jump. Press into the seat. Stats: jumpers die more often."
+    },
+    {
+      "order": 7,
+      "title": "Parking and end-of-shift",
+      "content": "End of shift: unload, lower forks to the floor, set parking brake, turn off ignition, remove key (hand to supervisor with signature). Park in the designated zone, not blocking aisles or charging stations (for electric forklifts — plug in for charging). Log in the register: hours, incidents, observations. No log = shift not closed.",
+      "key_takeaway": "Key to supervisor with signature. Without a handoff, the shift is yours until tomorrow."
+    }
+  ],
+  "quiz": [
+    {"question": "Minimum conditions for forklift authorization?", "options": ["One — have a license", "Two — license and briefing", "Five — age, license, medical, briefing, PPE", "No conditions"], "correct_index": 2, "explanation": "Missing any of the five = not authorized. It protects the operator's and others' lives."},
+    {"question": "Maximum speed in narrow aisles?", "options": ["10 km/h", "5 km/h", "15 km/h", "As fast as you want"], "correct_index": 1, "explanation": "Aisles have pedestrians and racks. 5 km/h gives reaction time."},
+    {"question": "Fork height while moving with a load?", "options": ["On the floor", "15-20 cm off the floor, mast tilted back", "At shoulder height", "As high as possible"], "correct_index": 1, "explanation": "15-20 cm clears obstacles while keeping the center of gravity low and stable."},
+    {"question": "What to do during a tipover?", "options": ["Jump out", "Press into the seat, grip the wheel, seatbelt holds", "Close your eyes", "Scream"], "correct_index": 1, "explanation": "Forklift accident stats: jumpers die in 80% of cases, operators staying in the cab survive 90%."},
+    {"question": "What to do with the key at end of shift?", "options": ["Leave it in the forklift", "Take it home", "Hand to supervisor with signature", "Throw it out"], "correct_index": 2, "explanation": "Unattended key in a forklift = unauthorized use = incident."}
+  ],
+  "manager_checklist": [
+    "Operator has all documents and PPE",
+    "Pre-shift inspection completed and logged",
+    "Complies with speed limits (10 / 5 km/h)",
+    "Keeps forks 15-20 cm off the floor while moving",
+    "Violates none of the 7 absolute prohibitions",
+    "Knows emergency protocol (do NOT jump)",
+    "Hands key to supervisor with signature",
+    "Completes the shift log"
+  ],
+  "kpi": [
+    {"metric": "Forklift-related injuries per year", "target": "0 injuries", "how_to_measure": "Safety log + OSHA (or equivalent) reports"},
+    {"metric": "Damage to stock/racks", "target": "≤ 0.1% of throughput", "how_to_measure": "Damage reports / total warehouse throughput"},
+    {"metric": "On-time forklift maintenance", "target": "100% scheduled PM completed", "how_to_measure": "PM schedule vs actual service records"},
+    {"metric": "Pre-shift inspection log compliance", "target": "100% of shifts", "how_to_measure": "Monthly log audit"}
+  ]
+}
