@@ -84,8 +84,16 @@ def join_org(invite_code: str, request: OrgJoinRequest, db: Session = Depends(ge
         OrgMember.user_key == request.user_key,
     ).first()
     if existing:
+        if request.display_name and not existing.display_name:
+            existing.display_name = request.display_name
+            db.commit()
         return {"org_id": org.id, "org_name": org.name, "already_member": True}
-    db.add(OrgMember(org_id=org.id, user_key=request.user_key, is_manager=False))
+    db.add(OrgMember(
+        org_id=org.id,
+        user_key=request.user_key,
+        display_name=request.display_name,
+        is_manager=False,
+    ))
     db.commit()
     return {"org_id": org.id, "org_name": org.name, "already_member": False}
 
@@ -210,6 +218,7 @@ def get_org_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
         )
         result.append(MemberProgress(
             user_key=m.user_key,
+            display_name=m.display_name,
             completed_count=reviewed,
             total_count=total,
             percent=pct,

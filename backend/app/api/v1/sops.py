@@ -284,6 +284,7 @@ def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
     for m in members:
         row: dict = {
             "user_key": m.user_key,
+            "display_name": m.display_name,
             "is_manager": m.is_manager,
             "sops": [],
         }

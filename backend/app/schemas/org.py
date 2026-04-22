@@ -10,6 +10,7 @@ class OrgCreateRequest(BaseModel):
 
 class OrgJoinRequest(BaseModel):
     user_key: str
+    display_name: Optional[str] = None
 
 
 class OrgInfo(BaseModel):
@@ -21,10 +22,11 @@ class OrgInfo(BaseModel):
 
 class MemberProgress(BaseModel):
     user_key: str
+    display_name: Optional[str] = None
     completed_count: int
     total_count: int
     percent: float
-    avg_mastery_pct: int = 0      # average SM-2 mastery across reviewed nodes
+    avg_mastery_pct: int = 0
     current_streak: int = 0
 
 

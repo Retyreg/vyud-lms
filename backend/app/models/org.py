@@ -26,11 +26,11 @@ class Organization(Base):
 class OrgMember(Base):
     __tablename__ = "org_members"
 
-    id         = Column(Integer, primary_key=True, index=True)
-    org_id     = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
-    # Простая идентификация для пилота: email или Telegram user_id как строка
-    user_key   = Column(String, nullable=False)
-    is_manager = Column(Boolean, default=False)
-    joined_at  = Column(DateTime(timezone=True), server_default=func.now())
+    id           = Column(Integer, primary_key=True, index=True)
+    org_id       = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    user_key     = Column(String, nullable=False)
+    display_name = Column(String, nullable=True)
+    is_manager   = Column(Boolean, default=False)
+    joined_at    = Column(DateTime(timezone=True), server_default=func.now())
 
     org = relationship("Organization", back_populates="members")
