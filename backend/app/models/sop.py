@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime
+from sqlalchemy import Boolean, Column, Date, Integer, String, Text, ForeignKey, JSON, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -43,3 +43,16 @@ class SOPCompletion(Base):
     max_score = Column(Integer, nullable=True)
     completed_at = Column(DateTime(timezone=True), server_default=func.now())
     time_spent_sec = Column(Integer, nullable=True)
+
+
+class SOPAssignment(Base):
+    __tablename__ = "sop_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    sop_id = Column(Integer, ForeignKey("sops.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_key = Column(String, nullable=False, index=True)
+    assigned_by = Column(String, nullable=False)
+    deadline = Column(Date, nullable=False)
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+    reminder_sent = Column(Boolean, default=False, nullable=False)

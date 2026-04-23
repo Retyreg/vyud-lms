@@ -1,18 +1,22 @@
 import json as _json
 import logging
 import re
+from datetime import date, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 from app.ai.client import call_ai
 from app.core.deps import get_db
 from app.models.org import OrgMember, Organization
-from app.models.sop import SOP, SOPCompletion, SOPStep
+from app.models.sop import SOP, SOPAssignment, SOPCompletion, SOPStep
 from app.schemas.sop import SOPListItem, SOPResponse, SOPStepSchema
 from app.services.pdf import extract_text_from_pdf
 from app.services.streak import update_streak
+from app.services.telegram import send_telegram_message
 
 logger = logging.getLogger(__name__)
 
@@ -307,3 +311,159 @@ def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
         "sops": [{"id": s.id, "title": s.title} for s in sops],
         "members": matrix,
     }
+
+
+# ── Assignments ────────────────────────────────────────────────────────────
+
+
+class AssignmentRequest(BaseModel):
+    sop_id: int
+    user_key: str
+    deadline: date
+
+
+@router.post("/orgs/{org_id}/assignments", status_code=201)
+def create_assignment(
+    org_id: int,
+    body: AssignmentRequest,
+    user_key: str,
+    db: Session = Depends(get_db),
+):
+    """Manager assigns a SOP to an employee with a deadline."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
+
+    sop = db.query(SOP).filter(SOP.id == body.sop_id, SOP.org_id == org_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found in this org")
+
+    existing = db.query(SOPAssignment).filter(
+        SOPAssignment.org_id == org_id,
+        SOPAssignment.sop_id == body.sop_id,
+        SOPAssignment.user_key == body.user_key,
+    ).first()
+    if existing:
+        existing.deadline = body.deadline
+        existing.assigned_by = user_key
+        existing.reminder_sent = False
+        db.commit()
+        assignment = existing
+    else:
+        assignment = SOPAssignment(
+            org_id=org_id,
+            sop_id=body.sop_id,
+            user_key=body.user_key,
+            assigned_by=user_key,
+            deadline=body.deadline,
+        )
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+
+    # Immediate push to employee
+    deadline_str = body.deadline.strftime("%d.%m.%Y")
+    send_telegram_message(
+        body.user_key,
+        f"📋 <b>Новый регламент</b>\n\n"
+        f"Вам назначен регламент <b>{sop.title}</b>.\n"
+        f"Дедлайн: <b>{deadline_str}</b>\n\n"
+        f"Откройте @{org.bot_username or 'VyudAiBot'} для прохождения.",
+    )
+
+    return {
+        "id": assignment.id,
+        "sop_id": body.sop_id,
+        "sop_title": sop.title,
+        "user_key": body.user_key,
+        "deadline": body.deadline.isoformat(),
+        "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
+    }
+
+
+@router.get("/orgs/{org_id}/assignments")
+def list_assignments(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager: all assignments for the org with completion status."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
+
+    assignments = db.query(SOPAssignment).filter(SOPAssignment.org_id == org_id).all()
+    sop_ids = list({a.sop_id for a in assignments})
+    user_keys = list({a.user_key for a in assignments})
+
+    sops_map = {s.id: s for s in db.query(SOP).filter(SOP.id.in_(sop_ids)).all()} if sop_ids else {}
+    completions = set()
+    if sop_ids and user_keys:
+        completions = {
+            (c.user_key, c.sop_id)
+            for c in db.query(SOPCompletion).filter(
+                SOPCompletion.sop_id.in_(sop_ids),
+                SOPCompletion.user_key.in_(user_keys),
+            ).all()
+        }
+
+    members_map = {
+        m.user_key: m.display_name
+        for m in db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    }
+
+    today = date.today()
+    result = []
+    for a in assignments:
+        sop = sops_map.get(a.sop_id)
+        overdue = a.deadline < today and (a.user_key, a.sop_id) not in completions
+        result.append({
+            "id": a.id,
+            "sop_id": a.sop_id,
+            "sop_title": sop.title if sop else "—",
+            "user_key": a.user_key,
+            "display_name": members_map.get(a.user_key),
+            "deadline": a.deadline.isoformat(),
+            "completed": (a.user_key, a.sop_id) in completions,
+            "overdue": overdue,
+        })
+    result.sort(key=lambda x: x["deadline"])
+    return result
+
+
+@router.get("/orgs/{org_id}/my-assignments")
+def list_my_assignments(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Employee: their own assignments with deadline info."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    member = db.query(OrgMember).filter(
+        OrgMember.org_id == org_id,
+        OrgMember.user_key == user_key,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a member of this org")
+
+    assignments = db.query(SOPAssignment).filter(
+        SOPAssignment.org_id == org_id,
+        SOPAssignment.user_key == user_key,
+    ).all()
+
+    completions = {
+        c.sop_id
+        for c in db.query(SOPCompletion).filter(
+            SOPCompletion.user_key == user_key,
+            SOPCompletion.sop_id.in_([a.sop_id for a in assignments]),
+        ).all()
+    } if assignments else set()
+
+    today = date.today()
+    return [
+        {
+            "sop_id": a.sop_id,
+            "deadline": a.deadline.isoformat(),
+            "days_left": (a.deadline - today).days,
+            "completed": a.sop_id in completions,
+            "overdue": a.deadline < today and a.sop_id not in completions,
+        }
+        for a in assignments
+    ]
