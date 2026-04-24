@@ -46,6 +46,16 @@ def clone_template(
     if not member:
         raise HTTPException(status_code=403, detail="Manager access required")
 
+    if org.plan == "free":
+        published_count = db.query(SOP).filter(
+            SOP.org_id == org_id, SOP.status == "published"
+        ).count()
+        if published_count >= 1:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "free_limit", "upgrade_url": "https://vyud.online/pricing"},
+            )
+
     template = db.query(SOPTemplate).filter(SOPTemplate.id == template_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")

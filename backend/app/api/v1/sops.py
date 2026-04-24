@@ -187,6 +187,16 @@ async def upload_sop_pdf(
     if not org:
         raise HTTPException(status_code=404, detail="Org not found")
 
+    if org.plan == "free":
+        published_count = db.query(SOP).filter(
+            SOP.org_id == org_id, SOP.status == "published"
+        ).count()
+        if published_count >= 1:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "free_limit", "upgrade_url": "https://vyud.online/pricing"},
+            )
+
     file_bytes = await file.read()
     try:
         pdf_text = extract_text_from_pdf(file_bytes)

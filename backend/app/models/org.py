@@ -14,6 +14,9 @@ class Organization(Base):
                          default=lambda: secrets.token_urlsafe(8))
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Billing plan
+    plan = Column(String, nullable=False, default="free")  # 'free' | 'starter' | 'team'
+
     # White-label branding
     brand_color   = Column(String, nullable=True)   # hex, e.g. "#3b82f6"
     logo_url      = Column(String, nullable=True)   # https://...

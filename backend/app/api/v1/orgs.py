@@ -88,6 +88,15 @@ def join_org(invite_code: str, request: OrgJoinRequest, db: Session = Depends(ge
             existing.display_name = request.display_name
             db.commit()
         return {"org_id": org.id, "org_name": org.name, "already_member": True}
+
+    if org.plan == "free":
+        member_count = db.query(OrgMember).filter(OrgMember.org_id == org.id).count()
+        if member_count >= 5:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "free_limit", "upgrade_url": "https://vyud.online/pricing"},
+            )
+
     db.add(OrgMember(
         org_id=org.id,
         user_key=request.user_key,
