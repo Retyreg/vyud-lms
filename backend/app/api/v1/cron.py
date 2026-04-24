@@ -1,12 +1,12 @@
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
-from app.models.org import Organization
+from app.models.org import OrgMember, Organization
 from app.models.sop import SOP, SOPAssignment, SOPCompletion
 from app.services.telegram import send_telegram_message
 
@@ -73,3 +73,62 @@ def send_reminders(db: Session = Depends(get_db), _: None = Depends(_check_secre
     db.commit()
     logger.info("Reminders sent: %d / %d pending", sent, len(pending))
     return {"sent": sent, "total_pending": len(pending)}
+
+
+@router.post("/weekly-digest")
+def send_weekly_digest(db: Session = Depends(get_db), _: None = Depends(_check_secret)):
+    """Send weekly completion digest to all org managers. Run every Monday."""
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    orgs = db.query(Organization).all()
+    sent = 0
+
+    for org in orgs:
+        managers = db.query(OrgMember).filter(
+            OrgMember.org_id == org.id,
+            OrgMember.is_manager == True,  # noqa: E712
+        ).all()
+        if not managers:
+            continue
+
+        members = db.query(OrgMember).filter(OrgMember.org_id == org.id).all()
+        if len(members) <= 1:
+            continue  # skip orgs with only manager, no employees yet
+
+        sops = db.query(SOP).filter(SOP.org_id == org.id, SOP.status == "published").all()
+        if not sops:
+            continue
+
+        sop_ids = [s.id for s in sops]
+        employee_keys = [m.user_key for m in members if not m.is_manager]
+
+        completions_week = db.query(SOPCompletion).filter(
+            SOPCompletion.sop_id.in_(sop_ids),
+            SOPCompletion.completed_at >= week_ago,
+        ).all()
+        completed_users_week = {c.user_key for c in completions_week}
+
+        all_completions_keys = {
+            c.user_key
+            for c in db.query(SOPCompletion.user_key).filter(
+                SOPCompletion.sop_id.in_(sop_ids),
+                SOPCompletion.user_key.in_(employee_keys),
+            ).all()
+        }
+        not_started = [k for k in employee_keys if k not in all_completions_keys]
+
+        lines = [
+            f"📊 <b>Еженедельный отчёт — {org.name}</b>",
+            "",
+            f"✅ Завершили за неделю: {len(completed_users_week)} из {len(employee_keys)}",
+            f"🆕 Ещё не начали: {len(not_started)}",
+            f"📋 Регламентов в программе: {len(sops)}",
+        ]
+        text = "\n".join(lines)
+
+        for manager in managers:
+            ok = send_telegram_message(manager.user_key, text)
+            if ok:
+                sent += 1
+
+    logger.info("Weekly digest sent: %d managers across %d orgs", sent, len(orgs))
+    return {"sent": sent, "orgs_processed": len(orgs)}

@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy import Boolean, Column, Date, Integer, String, Text, ForeignKey, JSON, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -56,3 +58,16 @@ class SOPAssignment(Base):
     deadline = Column(Date, nullable=False)
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())
     reminder_sent = Column(Boolean, default=False, nullable=False)
+
+
+class SOPCertificate(Base):
+    __tablename__ = "sop_certificates"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_key   = Column(String, nullable=False, index=True)
+    sop_id     = Column(Integer, ForeignKey("sops.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id     = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    cert_token = Column(String, unique=True, nullable=False, default=lambda: secrets.token_urlsafe(12))
+    score      = Column(Integer, nullable=True)
+    max_score  = Column(Integer, nullable=True)
+    issued_at  = Column(DateTime(timezone=True), server_default=func.now())

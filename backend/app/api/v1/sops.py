@@ -12,7 +12,7 @@ from sqlalchemy.sql import func
 from app.ai.client import call_ai
 from app.core.deps import get_db
 from app.models.org import OrgMember, Organization
-from app.models.sop import SOP, SOPAssignment, SOPCompletion, SOPStep
+from app.models.sop import SOP, SOPAssignment, SOPCertificate, SOPCompletion, SOPStep
 from app.schemas.sop import SOPListItem, SOPResponse, SOPStepSchema
 from app.services.pdf import extract_text_from_pdf
 from app.services.streak import update_streak
@@ -154,7 +154,24 @@ def complete_sop(
     db.commit()
     update_streak(user_key, db)
 
-    return {"status": "ok", "sop_id": sop_id, "score": score, "max_score": max_score}
+    # Issue certificate (idempotent)
+    cert = db.query(SOPCertificate).filter(
+        SOPCertificate.user_key == user_key,
+        SOPCertificate.sop_id == sop_id,
+    ).first()
+    if not cert:
+        cert = SOPCertificate(
+            user_key=user_key,
+            sop_id=sop_id,
+            org_id=sop.org_id,
+            score=score,
+            max_score=max_score,
+        )
+        db.add(cert)
+        db.commit()
+        db.refresh(cert)
+
+    return {"status": "ok", "sop_id": sop_id, "score": score, "max_score": max_score, "cert_token": cert.cert_token}
 
 
 @router.post("/orgs/{org_id}/sops/upload-pdf")
@@ -310,6 +327,28 @@ def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
         "org_name": org.name,
         "sops": [{"id": s.id, "title": s.title} for s in sops],
         "members": matrix,
+    }
+
+
+# ── Certificates ──────────────────────────────────────────────────────────
+
+
+@router.get("/cert/{token}")
+def get_certificate(token: str, db: Session = Depends(get_db)):
+    """Public endpoint — verify and display a SOP completion certificate."""
+    cert = db.query(SOPCertificate).filter(SOPCertificate.cert_token == token).first()
+    if not cert:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+    sop = db.query(SOP).filter(SOP.id == cert.sop_id).first()
+    org = db.query(Organization).filter(Organization.id == cert.org_id).first()
+    return {
+        "cert_token": cert.cert_token,
+        "user_key": cert.user_key,
+        "sop_title": sop.title if sop else "—",
+        "org_name": org.name if org else "—",
+        "score": cert.score,
+        "max_score": cert.max_score,
+        "issued_at": cert.issued_at.isoformat() if cert.issued_at else None,
     }
 
 
