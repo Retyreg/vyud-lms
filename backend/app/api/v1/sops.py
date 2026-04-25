@@ -462,6 +462,57 @@ def get_certificate(token: str, db: Session = Depends(get_db)):
     }
 
 
+# ── User progress history ─────────────────────────────────────────────────
+
+
+@router.get("/orgs/{org_id}/my-progress")
+def get_my_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Employee: list of SOPs with completion status and cert_token."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    sops = (
+        db.query(SOP)
+        .filter(SOP.org_id == org_id, SOP.status == "published")
+        .order_by(SOP.created_at.desc())
+        .all()
+    )
+
+    completions = {
+        c.sop_id: c for c in db.query(SOPCompletion).filter(
+            SOPCompletion.user_key == user_key,
+            SOPCompletion.sop_id.in_([s.id for s in sops]),
+        ).all()
+    }
+
+    certs = {
+        c.sop_id: c for c in db.query(SOPCertificate).filter(
+            SOPCertificate.user_key == user_key,
+            SOPCertificate.sop_id.in_([s.id for s in sops]),
+        ).all()
+    }
+
+    result = []
+    for s in sops:
+        comp = completions.get(s.id)
+        cert = certs.get(s.id)
+        steps_count = db.query(SOPStep).filter(SOPStep.sop_id == s.id).count()
+        result.append({
+            "sop_id": s.id,
+            "title": s.title,
+            "steps_count": steps_count,
+            "completed": comp is not None,
+            "score": comp.score if comp else None,
+            "max_score": comp.max_score if comp else None,
+            "time_spent_sec": comp.time_spent_sec if comp else None,
+            "completed_at": comp.completed_at.isoformat() if comp and comp.completed_at else None,
+            "cert_token": cert.cert_token if cert else None,
+        })
+
+    return {"org_name": org.name, "items": result}
+
+
 # ── Assignments ────────────────────────────────────────────────────────────
 
 
