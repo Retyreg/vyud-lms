@@ -137,6 +137,8 @@ def complete_sop(
         SOPCompletion.user_key == user_key,
     ).first()
 
+    is_first_completion = existing is None
+
     if existing:
         existing.score = score
         existing.max_score = max_score
@@ -170,6 +172,22 @@ def complete_sop(
         db.add(cert)
         db.commit()
         db.refresh(cert)
+
+    # Notify org managers on first completion
+    if is_first_completion:
+        employee = db.query(OrgMember).filter(
+            OrgMember.org_id == sop.org_id,
+            OrgMember.user_key == user_key,
+        ).first()
+        employee_name = (employee.display_name if employee and employee.display_name else user_key)
+        score_str = f" — {score}/{max_score}" if max_score > 0 else ""
+        text = f"✅ <b>{employee_name}</b> прошёл «{sop.title}»{score_str}"
+        managers = db.query(OrgMember).filter(
+            OrgMember.org_id == sop.org_id,
+            OrgMember.is_manager == True,  # noqa: E712
+        ).all()
+        for mgr in managers:
+            send_telegram_message(mgr.user_key, text)
 
     return {"status": "ok", "sop_id": sop_id, "score": score, "max_score": max_score, "cert_token": cert.cert_token}
 
@@ -338,6 +356,63 @@ def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
         "sops": [{"id": s.id, "title": s.title} for s in sops],
         "members": matrix,
     }
+
+
+# ── SOP Edit / Delete ─────────────────────────────────────────────────────
+
+
+class SOPStepUpdate(BaseModel):
+    step_number: int
+    title: str
+    content: str
+
+
+class SOPUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    steps: Optional[list[SOPStepUpdate]] = None
+
+
+@router.patch("/sops/{sop_id}")
+def update_sop(
+    sop_id: int,
+    user_key: str,
+    body: SOPUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """Manager edits SOP title, description, and/or steps."""
+    sop = db.query(SOP).filter(SOP.id == sop_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+    _require_manager(sop.org_id, user_key, db)
+
+    if body.title is not None:
+        sop.title = body.title
+    if body.description is not None:
+        sop.description = body.description
+
+    if body.steps is not None:
+        existing_steps = {s.step_number: s for s in db.query(SOPStep).filter(SOPStep.sop_id == sop_id).all()}
+        for step_data in body.steps:
+            step = existing_steps.get(step_data.step_number)
+            if step:
+                step.title = step_data.title
+                step.content = step_data.content
+
+    db.commit()
+    return {"status": "ok", "sop_id": sop_id}
+
+
+@router.delete("/sops/{sop_id}", status_code=200)
+def delete_sop(sop_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager deletes a SOP and all its steps/completions."""
+    sop = db.query(SOP).filter(SOP.id == sop_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+    _require_manager(sop.org_id, user_key, db)
+    db.delete(sop)
+    db.commit()
+    return {"status": "ok", "deleted_sop_id": sop_id}
 
 
 # ── Certificates ──────────────────────────────────────────────────────────
