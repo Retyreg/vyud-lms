@@ -351,9 +351,34 @@ def get_sop_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
             })
         matrix.append(row)
 
+    employee_keys = {m.user_key for m in members if not m.is_manager}
+    employee_count = len(employee_keys)
+
+    sops_out = []
+    for s in sops:
+        sop_comps = [c for c in completions if c.sop_id == s.id and c.user_key in employee_keys]
+        completed_count = len(sop_comps)
+        avg_score: float | None = None
+        avg_time: float | None = None
+        if sop_comps:
+            scored = [c for c in sop_comps if c.max_score and c.max_score > 0]
+            if scored:
+                avg_score = round(sum(c.score / c.max_score * 100 for c in scored) / len(scored), 1)
+            timed = [c for c in sop_comps if c.time_spent_sec]
+            if timed:
+                avg_time = round(sum(c.time_spent_sec for c in timed) / len(timed))
+        sops_out.append({
+            "id": s.id,
+            "title": s.title,
+            "completed_count": completed_count,
+            "employee_count": employee_count,
+            "avg_score_pct": avg_score,
+            "avg_time_sec": avg_time,
+        })
+
     return {
         "org_name": org.name,
-        "sops": [{"id": s.id, "title": s.title} for s in sops],
+        "sops": sops_out,
         "members": matrix,
     }
 
