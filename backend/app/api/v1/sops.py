@@ -51,15 +51,29 @@ def _require_manager(org_id: int, user_key: str, db: Session) -> OrgMember:
 
 
 @router.get("/orgs/{org_id}/sops")
-def list_org_sops(org_id: int, user_key: str, db: Session = Depends(get_db)):
-    """List published SOPs for the org with completion flag for user_key."""
+def list_org_sops(org_id: int, user_key: str, include_drafts: bool = False, db: Session = Depends(get_db)):
+    """List SOPs for the org. Managers can pass include_drafts=true to see drafts."""
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Org not found")
 
+    status_filter = SOP.org_id == org_id
+    if include_drafts:
+        # Only managers can see drafts
+        is_mgr = db.query(OrgMember).filter(
+            OrgMember.org_id == org_id,
+            OrgMember.user_key == user_key,
+            OrgMember.is_manager == True,  # noqa: E712
+        ).first()
+        if not is_mgr:
+            include_drafts = False
+
     sops = (
         db.query(SOP)
-        .filter(SOP.org_id == org_id, SOP.status == "published")
+        .filter(
+            SOP.org_id == org_id,
+            SOP.status.in_(["published", "draft"]) if include_drafts else SOP.status == "published",
+        )
         .order_by(SOP.created_at.desc())
         .all()
     )
@@ -395,6 +409,7 @@ class SOPStepUpdate(BaseModel):
 class SOPUpdateRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None   # 'draft' | 'published'
     steps: Optional[list[SOPStepUpdate]] = None
 
 
@@ -415,6 +430,8 @@ def update_sop(
         sop.title = body.title
     if body.description is not None:
         sop.description = body.description
+    if body.status in ("draft", "published"):
+        sop.status = body.status
 
     if body.steps is not None:
         existing_steps = {s.step_number: s for s in db.query(SOPStep).filter(SOPStep.sop_id == sop_id).all()}
