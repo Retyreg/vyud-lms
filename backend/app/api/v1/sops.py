@@ -479,6 +479,44 @@ def get_certificate(token: str, db: Session = Depends(get_db)):
     }
 
 
+# ── Manager nudge ─────────────────────────────────────────────────────────
+
+
+@router.post("/orgs/{org_id}/nudge")
+def nudge_employee(
+    org_id: int,
+    employee_key: str,
+    sop_id: int,
+    user_key: str,
+    db: Session = Depends(get_db),
+):
+    """Manager sends a one-off reminder to an employee about a specific SOP."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
+
+    sop = db.query(SOP).filter(SOP.id == sop_id, SOP.org_id == org_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+
+    already = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id == sop_id,
+        SOPCompletion.user_key == employee_key,
+    ).first()
+    if already:
+        raise HTTPException(status_code=400, detail="Employee already completed this SOP")
+
+    tma_url = "https://t.me/VyudAiBot/app"
+    text = (
+        f"👋 Напоминание от менеджера\n\n"
+        f"Пожалуйста, пройдите регламент «{sop.title}».\n\n"
+        f"<a href='{tma_url}'>Открыть VYUD Frontline →</a>"
+    )
+    sent = send_telegram_message(employee_key, text)
+    return {"status": "ok", "sent": sent, "employee_key": employee_key}
+
+
 # ── User progress history ─────────────────────────────────────────────────
 
 
