@@ -144,6 +144,22 @@ def get_org(org_id: int, user_key: str, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/orgs/{org_id}/members")
+def list_org_members(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager lists all members of the org."""
+    _require_manager(org_id, user_key, db)
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id).all()
+    return [
+        {
+            "user_key": m.user_key,
+            "display_name": m.display_name,
+            "is_manager": m.is_manager,
+            "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+        }
+        for m in members
+    ]
+
+
 @router.delete("/orgs/{org_id}/members/{member_key}", status_code=200)
 def remove_org_member(org_id: int, member_key: str, user_key: str, db: Session = Depends(get_db)):
     """Manager removes a member from the org."""
