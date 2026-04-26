@@ -479,6 +479,59 @@ def get_certificate(token: str, db: Session = Depends(get_db)):
     }
 
 
+# ── Org leaderboard ───────────────────────────────────────────────────────
+
+
+@router.get("/orgs/{org_id}/leaderboard")
+def get_org_leaderboard(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Public org leaderboard: employees ranked by SOPs completed."""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+
+    members = db.query(OrgMember).filter(
+        OrgMember.org_id == org_id,
+        OrgMember.is_manager == False,  # noqa: E712
+    ).all()
+
+    sops = db.query(SOP).filter(SOP.org_id == org_id, SOP.status == "published").all()
+    total_sops = len(sops)
+    sop_ids = [s.id for s in sops]
+
+    completions = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id.in_(sop_ids),
+        SOPCompletion.user_key.in_([m.user_key for m in members]),
+    ).all()
+
+    from collections import defaultdict
+    comp_by_user: dict[str, list] = defaultdict(list)
+    for c in completions:
+        comp_by_user[c.user_key].append(c)
+
+    rows = []
+    for m in members:
+        user_comps = comp_by_user[m.user_key]
+        done = len({c.sop_id for c in user_comps})
+        avg_score: float | None = None
+        scored = [c for c in user_comps if c.max_score and c.max_score > 0]
+        if scored:
+            avg_score = round(sum(c.score / c.max_score * 100 for c in scored) / len(scored), 1)
+        rows.append({
+            "user_key": m.user_key,
+            "display_name": m.display_name,
+            "is_me": m.user_key == user_key,
+            "completed": done,
+            "total": total_sops,
+            "avg_score_pct": avg_score,
+        })
+
+    rows.sort(key=lambda r: (-r["completed"], -(r["avg_score_pct"] or 0)))
+    for i, r in enumerate(rows):
+        r["rank"] = i + 1
+
+    return {"org_name": org.name, "total_sops": total_sops, "entries": rows}
+
+
 # ── CSV export ────────────────────────────────────────────────────────────
 
 
