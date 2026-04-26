@@ -793,6 +793,21 @@ def list_assignments(org_id: int, user_key: str, db: Session = Depends(get_db)):
     return result
 
 
+@router.delete("/orgs/{org_id}/assignments/{assignment_id}", status_code=200)
+def delete_assignment(org_id: int, assignment_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager removes an assignment."""
+    _require_manager(org_id, user_key, db)
+    assignment = db.query(SOPAssignment).filter(
+        SOPAssignment.id == assignment_id,
+        SOPAssignment.org_id == org_id,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    db.delete(assignment)
+    db.commit()
+    return {"deleted": assignment_id}
+
+
 @router.get("/orgs/{org_id}/my-assignments")
 def list_my_assignments(org_id: int, user_key: str, db: Session = Depends(get_db)):
     """Employee: their own assignments with deadline info."""
