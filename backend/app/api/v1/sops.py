@@ -479,6 +479,62 @@ def get_certificate(token: str, db: Session = Depends(get_db)):
     }
 
 
+# ── CSV export ────────────────────────────────────────────────────────────
+
+
+@router.get("/orgs/{org_id}/sop-progress/export-csv")
+def export_sop_progress_csv(org_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager: download team completion matrix as CSV."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    _require_manager(org_id, user_key, db)
+
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id, OrgMember.is_manager == False).all()  # noqa: E712
+    sops = db.query(SOP).filter(SOP.org_id == org_id, SOP.status == "published").order_by(SOP.created_at).all()
+
+    completions = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id.in_([s.id for s in sops]),
+        SOPCompletion.user_key.in_([m.user_key for m in members]),
+    ).all()
+    comp_map = {(c.user_key, c.sop_id): c for c in completions}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    header = ["Сотрудник"] + [s.title for s in sops] + ["Всего пройдено", "% прогресса"]
+    writer.writerow(header)
+
+    for m in members:
+        name = m.display_name or m.user_key
+        row = [name]
+        done = 0
+        for s in sops:
+            comp = comp_map.get((m.user_key, s.id))
+            if comp:
+                score_str = f"{comp.score}/{comp.max_score}" if comp.max_score else "✓"
+                row.append(score_str)
+                done += 1
+            else:
+                row.append("")
+        pct = round(done / len(sops) * 100, 1) if sops else 0
+        row += [done, f"{pct}%"]
+        writer.writerow(row)
+
+    output.seek(0)
+    from datetime import date
+    filename = f"progress_{org.name}_{date.today()}.csv".replace(" ", "_")
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 # ── Manager nudge ─────────────────────────────────────────────────────────
 
 
