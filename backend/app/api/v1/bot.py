@@ -12,7 +12,7 @@ from app.services.telegram import BOT_TOKEN, send_telegram_message
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/bot", tags=["bot"])
+router = APIRouter(prefix="/api/bot", tags=["bot"])
 
 BOT_USERNAME = "VyudAiBot"
 TMA_URL = f"https://t.me/{BOT_USERNAME}/app"
