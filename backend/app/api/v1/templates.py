@@ -26,6 +26,22 @@ def list_templates(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/templates/{template_id}")
+def get_template(template_id: int, db: Session = Depends(get_db)):
+    """Get a single template with its steps for preview."""
+    template = db.query(SOPTemplate).filter(SOPTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {
+        "id": template.id,
+        "title": template.title,
+        "description": template.description,
+        "category": template.category,
+        "steps": template.steps or [],
+        "quiz_count": len(template.quiz_json) if template.quiz_json else 0,
+    }
+
+
 @router.post("/orgs/{org_id}/templates/{template_id}/clone")
 def clone_template(
     org_id: int,
