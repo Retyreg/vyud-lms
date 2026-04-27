@@ -677,6 +677,53 @@ def get_my_progress(org_id: int, user_key: str, db: Session = Depends(get_db)):
     return {"org_name": org.name, "items": result}
 
 
+@router.get("/orgs/{org_id}/sops/{sop_id}/completions")
+def list_sop_completions(org_id: int, sop_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager: list who completed a specific SOP with scores and times."""
+    _require_manager(org_id, user_key, db)
+    sop = db.query(SOP).filter(SOP.id == sop_id, SOP.org_id == org_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+
+    members = db.query(OrgMember).filter(OrgMember.org_id == org_id, OrgMember.is_manager == False).all()  # noqa: E712
+    member_keys = [m.user_key for m in members]
+    members_map = {m.user_key: m.display_name for m in members}
+
+    completions = db.query(SOPCompletion).filter(
+        SOPCompletion.sop_id == sop_id,
+        SOPCompletion.user_key.in_(member_keys),
+    ).order_by(SOPCompletion.completed_at.desc()).all()
+
+    completed_keys = {c.user_key for c in completions}
+    not_completed = [k for k in member_keys if k not in completed_keys]
+
+    result = []
+    for c in completions:
+        score_pct = round(c.score / c.max_score * 100) if c.max_score and c.max_score > 0 else None
+        result.append({
+            "user_key": c.user_key,
+            "display_name": members_map.get(c.user_key),
+            "completed": True,
+            "score": c.score,
+            "max_score": c.max_score,
+            "score_pct": score_pct,
+            "time_spent_sec": c.time_spent_sec,
+            "completed_at": c.completed_at.isoformat() if c.completed_at else None,
+        })
+    for k in not_completed:
+        result.append({
+            "user_key": k,
+            "display_name": members_map.get(k),
+            "completed": False,
+            "score": None,
+            "max_score": None,
+            "score_pct": None,
+            "time_spent_sec": None,
+            "completed_at": None,
+        })
+    return {"sop_title": sop.title, "completions": result}
+
+
 # ── Assignments ────────────────────────────────────────────────────────────
 
 
