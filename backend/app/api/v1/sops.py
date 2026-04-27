@@ -457,6 +457,38 @@ def delete_sop(sop_id: int, user_key: str, db: Session = Depends(get_db)):
     return {"status": "ok", "deleted_sop_id": sop_id}
 
 
+@router.post("/sops/{sop_id}/duplicate", status_code=201)
+def duplicate_sop(sop_id: int, user_key: str, db: Session = Depends(get_db)):
+    """Manager duplicates a SOP (steps + quiz). New SOP is created as draft with title + ' (копия)'."""
+    sop = db.query(SOP).filter(SOP.id == sop_id).first()
+    if not sop:
+        raise HTTPException(status_code=404, detail="SOP not found")
+    _require_manager(sop.org_id, user_key, db)
+
+    new_sop = SOP(
+        org_id=sop.org_id,
+        title=f"{sop.title} (копия)",
+        description=sop.description,
+        status="draft",
+        quiz_json=sop.quiz_json,
+    )
+    db.add(new_sop)
+    db.flush()
+
+    steps = db.query(SOPStep).filter(SOPStep.sop_id == sop_id).order_by(SOPStep.step_number).all()
+    for s in steps:
+        db.add(SOPStep(
+            sop_id=new_sop.id,
+            step_number=s.step_number,
+            title=s.title,
+            content=s.content,
+            image_url=s.image_url,
+        ))
+    db.commit()
+    db.refresh(new_sop)
+    return {"status": "ok", "sop_id": new_sop.id, "title": new_sop.title}
+
+
 # ── Certificates ──────────────────────────────────────────────────────────
 
 
