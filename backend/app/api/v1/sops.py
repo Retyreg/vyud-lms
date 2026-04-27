@@ -434,12 +434,16 @@ def update_sop(
         sop.status = body.status
 
     if body.steps is not None:
-        existing_steps = {s.step_number: s for s in db.query(SOPStep).filter(SOPStep.sop_id == sop_id).all()}
+        # Replace all steps with the new list (supports add / delete / reorder)
+        db.query(SOPStep).filter(SOPStep.sop_id == sop_id).delete(synchronize_session=False)
+        db.flush()
         for step_data in body.steps:
-            step = existing_steps.get(step_data.step_number)
-            if step:
-                step.title = step_data.title
-                step.content = step_data.content
+            db.add(SOPStep(
+                sop_id=sop_id,
+                step_number=step_data.step_number,
+                title=step_data.title,
+                content=step_data.content,
+            ))
 
     db.commit()
     return {"status": "ok", "sop_id": sop_id}
