@@ -16,7 +16,7 @@ from app.models.sop import SOP, SOPAssignment, SOPCertificate, SOPCompletion, SO
 from app.schemas.sop import SOPListItem, SOPResponse, SOPStepSchema
 from app.services.pdf import extract_text_from_pdf
 from app.services.streak import update_streak
-from app.services.telegram import send_telegram_message
+from app.services.telegram import BOT_USERNAME, send_telegram_message
 
 logger = logging.getLogger(__name__)
 
@@ -652,7 +652,7 @@ def nudge_employee(
     if already:
         raise HTTPException(status_code=400, detail="Employee already completed this SOP")
 
-    tma_url = "https://t.me/VyudAiBot/app"
+    tma_url = f"https://t.me/{BOT_USERNAME}/app"
     text = (
         f"👋 Напоминание от менеджера\n\n"
         f"Пожалуйста, пройдите регламент «{sop.title}».\n\n"
@@ -816,7 +816,7 @@ def create_assignment(
         f"📋 <b>Новый регламент</b>\n\n"
         f"Вам назначен регламент <b>{sop.title}</b>.\n"
         f"Дедлайн: <b>{deadline_str}</b>\n\n"
-        f"Откройте @{org.bot_username or 'VyudAiBot'} для прохождения.",
+        f"Откройте @{org.bot_username or BOT_USERNAME} для прохождения.",
     )
 
     return {
