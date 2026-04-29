@@ -8,13 +8,12 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db
 from app.models.org import OrgMember
 from app.models.sop import SOP, SOPAssignment, SOPCertificate, SOPCompletion
-from app.services.telegram import BOT_TOKEN, send_telegram_message
+from app.services.telegram import BOT_TOKEN, BOT_USERNAME, send_telegram_message
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bot", tags=["bot"])
 
-BOT_USERNAME = "VyudAiBot"
 TMA_URL = f"https://t.me/{BOT_USERNAME}/app"
 
 CRON_SECRET = os.getenv("CRON_SECRET", "")

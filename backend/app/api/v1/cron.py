@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db
 from app.models.org import OrgMember, Organization
 from app.models.sop import SOP, SOPAssignment, SOPCompletion
-from app.services.telegram import send_telegram_message
+from app.services.telegram import BOT_USERNAME, send_telegram_message
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def send_reminders(db: Session = Depends(get_db), _: None = Depends(_check_secre
             a.user_key,
             f"⏰ <b>Напоминание о регламенте</b>\n\n"
             f"Завтра дедлайн по регламенту <b>{sop.title}</b>.\n\n"
-            f"Откройте @{org.bot_username if org else 'VyudAiBot'} и пройдите сегодня.",
+            f"Откройте @{org.bot_username if org else BOT_USERNAME} и пройдите сегодня.",
         )
         if ok:
             sent += 1
