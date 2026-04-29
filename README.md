@@ -1,7 +1,19 @@
-# 🧠 VYUD LMS — AI-платформа обучения на графе знаний
+# 🧠 VYUD — две платформы на одном бэкенде
 
-> Интерактивная LMS с визуализацией знаний через граф, AI-объяснениями и SM-2 повторением. 
-> B2B-фокус: IT-команды и стартапы СНГ, 5–200 человек.
+> Два B2B-продукта поверх общего FastAPI-бэкенда:
+> - **VYUD Frontline** — корпоративные регламенты в Telegram, AI генерирует шаги и квиз из PDF (лидирующий продукт, 3 мес фокус)
+> - **VYUD LMS** — self-learning через граф знаний с AI-объяснениями и SM-2 повторением
+
+---
+
+## 🎯 Два продукта
+
+| Продукт | Кому | Интерфейс | Бот | Endpoints |
+|---|---|---|---|---|
+| **VYUD Frontline** | HoReCa, Retail, FMCG (5–50 чел.) | TMA в репо [vyud-tma](https://github.com/Retyreg/vyud-tma) | [@VyudFrontlineBot](https://t.me/VyudFrontlineBot) | `/api/sops/*`, `/api/orgs/*` |
+| **VYUD LMS** | IT-команды и стартапы СНГ | `vyud-lms/frontend` (Next.js) | [@VyudAiBot](https://t.me/VyudAiBot) | `/api/courses/*`, `/api/nodes/*`, `/api/explain/*` |
+
+Северная звезда Frontline: за 5 минут от PDF до прохождения квиза первым сотрудником.
 
 ---
 
@@ -9,9 +21,9 @@
 
 | Компонент | Репозиторий | URL | Хостинг |
 |---|---|---|---|
-| Backend (FastAPI) | [Retyreg/vyud-lms](https://github.com/Retyreg/vyud-lms) `/backend` | `38.180.229.254:8000` | VPS + Render |
-| Frontend (Next.js + граф) | [Retyreg/vyud-lms](https://github.com/Retyreg/vyud-lms) `/frontend` | `vyud-lms.vercel.app` | Vercel |
-| Telegram Mini App | [Retyreg/vyud-tma](https://github.com/Retyreg/vyud-tma) | `lms.vyud.online` | Vercel |
+| Backend (FastAPI) | [Retyreg/vyud-lms](https://github.com/Retyreg/vyud-lms) `/backend` | `38.180.229.254:8000` | VPS (systemd) |
+| LMS Frontend (Next.js + граф) | [Retyreg/vyud-lms](https://github.com/Retyreg/vyud-lms) `/frontend` | `lms.vyud.online` | Vercel |
+| Frontline TMA | [Retyreg/vyud-tma](https://github.com/Retyreg/vyud-tma) | открывается через @VyudFrontlineBot | Vercel |
 | База данных | — | Supabase (eu-west-1) | Supabase |
 
 ---
@@ -53,7 +65,11 @@ DATABASE_URL=postgresql://... # Supabase connection string (Transaction Pooler, 
 GROQ_API_KEY=gsk_... # Groq API
 GEMINI_API_KEY=... # Google Gemini (опционально, fallback)
 ANTHROPIC_API_KEY=sk-ant-... # Claude API (опционально, premium модель)
-TELEGRAM_BOT_TOKEN=... # Telegram Bot
+
+# Frontline-бот (TMA + push сотрудникам)
+FRONTLINE_BOT_TOKEN=... # @VyudFrontlineBot из @BotFather
+FRONTLINE_BOT_USERNAME=VyudFrontlineBot
+TELEGRAM_BOT_TOKEN=... # legacy fallback для FRONTLINE_BOT_TOKEN
 ```
 
 ### Команды Makefile
@@ -235,7 +251,7 @@ chore: add alembic migration for node_sr_progress
 
 | Проект | URL | Описание |
 |---|---|---|
-| vyud-tma | lms.vyud.online | Telegram Mini App (тесты, загрузка документов) |
+| vyud-tma | через @VyudFrontlineBot | Telegram Mini App для VYUD Frontline (СОПы, прогресс сотрудников, дашборд менеджера) |
 | vyud-saas-agent | sales.vyud.tech | AI Sales агент для SaaS-компаний |
 | mari-lingo-bot | — | Telegram бот изучения марийского языка (SM-2 алгоритм) |
 
