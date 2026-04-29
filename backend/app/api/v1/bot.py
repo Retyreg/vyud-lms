@@ -43,7 +43,7 @@ def set_webhook(secret: str, base_url: str):
     if secret != CRON_SECRET:
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Forbidden")
-    webhook_url = f"{base_url}/api/v1/bot/webhook"
+    webhook_url = f"{base_url}/api/bot/webhook"
     r = httpx.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
         json={"url": webhook_url},
