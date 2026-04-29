@@ -1,7 +1,7 @@
 # CLAUDE.md — VYUD LMS / VYUD Frontline
 
 > Контекст для Claude Code. Читать в начале каждой сессии.
-> Maintainer: @Retyreg · Обновлено: апрель 2026
+> Maintainer: @Retyreg · Обновлено: апрель 2026 (split bots, реальные VPS-пути)
 
 ---
 
@@ -112,6 +112,28 @@ SOP CRUD + PDF upload + AI quiz generation · Manager dashboard · Organizations
 
 ---
 
+## Telegram-боты
+
+Каждый продукт = свой бот. Это нужно чтобы пользователь сразу понимал, какой продукт решает его задачу.
+
+| Бот | Продукт | Назначение в коде |
+|---|---|---|
+| `@VyudFrontlineBot` | VYUD Frontline | TMA-контейнер + push-уведомления сотрудникам (assignment, reminder, completion). Webhook-команды `/start`, `/mysops`, `/stats`, `/cert`, `/help` живут на нём. |
+| `@VyudAiBot` | VYUD AI / VYUD LMS | Заготовка под будущую AI-генерацию курсов и квизов в @BotFather. В коде backend сейчас не используется. |
+
+### Env vars
+```
+FRONTLINE_BOT_TOKEN=<токен от @VyudFrontlineBot>     # читается в services/telegram.py
+FRONTLINE_BOT_USERNAME=VyudFrontlineBot              # для invite-ссылок и push-текстов
+TELEGRAM_BOT_TOKEN=<legacy fallback>                  # читается если FRONTLINE_BOT_TOKEN не задан
+```
+Frontend (`vyud-tma`) читает `VITE_TMA_BOT_USERNAME` (default: `VyudFrontlineBot`) для invite-ссылок и support-handle.
+
+### Где не должно быть хардкодов
+`'VyudAiBot'` / `'VyudFrontlineBot'` нигде в коде явно не пишем — берём из `BOT_USERNAME` (backend, `app/services/telegram.py`) или из `import { BOT_USERNAME } from '../lib/bot'` (TMA).
+
+---
+
 ## Demo Mode
 
 ### Архитектура
@@ -209,8 +231,8 @@ cd backend && .venv/bin/uvicorn app.main:app --reload
 # Frontend (VYUD LMS Web UI)
 cd frontend && npm run dev
 
-# Deploy (VPS)
-ssh vyud@38.180.229.254 'cd /srv/vyud-lms && git pull && systemctl restart vyud-lms'
+# Deploy (VPS) — реальные путь, юзер и сервис
+ssh root@38.180.229.254 'cd /var/www/vyud-lms && git pull && systemctl restart vyud-backend'
 ```
 
 ---
